@@ -11,6 +11,14 @@ type UIProduct = {
   image: string;
 };
 
+type Review = {
+  id: string;
+  user_id: string;
+  nota: number;
+  comentario: string | null;
+  created_at: string;
+};
+
 const imageByProdutoId: Record<string, string> = {
   '1': 'https://lh3.googleusercontent.com/aida-public/AB6AXuAFqfRvPlxLtpJf3q4Q_4nbSx9qYYKC9Bfpfo-t-Y1C-StMKE3C3oK_IY7xW1PP0lAXxi0_S8chw44Ou7mr7yPHZC8fDbbfqPBbcZcDWnlHDvUnZyS39-3wbxBRqOCHy14AaDbuzyPnpVdi2njwgMOIPpKgQ2cq0yvLv4fFODzpBJNDI0mnX3M8TmxPSHmrBp2J-yy4IhbCUFXSaZ6hdckt7U3SMv3TiYPh6vEFdECsX-hBbd_N1jiZMscPs3KpNlMgpltxB6oPwalh',
   '2': 'https://lh3.googleusercontent.com/aida-public/AB6AXuDxNsEreXnXH8j-ImeOC6ICXbB_X7sfhJRf065-7sQMyvN4qH06X119y_pOp5s36RV9VzHUrSy9Wl1RcAc4CX2kFIjPCDde-NoPVORgGBs47gUjD5horwh9ibWB0S-i6jF2MAvgNaWut5DuU72VdNU_P2R2qDhDIrJZzs3qqOtwgLZyag_KtIU3tUqBi4Ubnt5EnZP3zOlD0TwZHJ0K1bFlC7wzMWp0nHJ-o4VSeo2WbwoNsTgzb8z-1hf-SKMfFh99GyxBOWV3AQjJ',
@@ -38,6 +46,26 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [added, setAdded] = useState(false);
+
+  const [user, setUser] = useState<any>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [avgRating, setAvgRating] = useState(0);
+  const [myRating, setMyRating] = useState<number>(0);
+  const [myComment, setMyComment] = useState('');
+  const [savingReview, setSavingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string>('');
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setUser(data.user);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     // Se mudou de ID e não temos dados iniciais desse novo ID, reseta e mostra loading
@@ -114,6 +142,123 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
     load();
   }, [id, hasInitialData]); // Re-executa se o ID mudar ou se a disponibilidade de dados iniciais mudar
 
+  useEffect(() => {
+    const loadReviews = async () => {
+      if (!id) return;
+
+      setReviewError('');
+
+      const { data: reviewsData, error: reviewsError } = await supabase
+        .from('avaliacoes_produto')
+        .select('id, user_id, nota, comentario, created_at')
+        .eq('produto_id', id)
+        .order('created_at', { ascending: false });
+
+      if (reviewsError) {
+        console.error('Erro ao carregar avaliações:', reviewsError);
+        const raw = (reviewsError as any)?.message || '';
+        const msgLower = String(raw).toLowerCase();
+        if (msgLower.includes('does not exist') || msgLower.includes('relation') || msgLower.includes('42p01')) {
+          setReviewError('Tabela de avaliações não existe no Supabase. Rode o arquivo supabase_avaliacoes.sql no Supabase (SQL Editor) e recarregue a página.');
+        } else if (msgLower.includes('column') || msgLower.includes('42703')) {
+          setReviewError('Estrutura da tabela de avaliações está diferente do esperado. Confirme que existe a coluna "nota" (int) e recarregue a página.');
+        } else if (msgLower.includes('permission') || msgLower.includes('rls') || msgLower.includes('not allowed')) {
+          setReviewError('Sem permissão para ler avaliações (RLS). Verifique as policies da tabela avaliacoes_produto.');
+        } else {
+          setReviewError('Erro ao carregar avaliações.');
+        }
+        setReviews([]);
+        setAvgRating(0);
+        return;
+      }
+
+      const list = (reviewsData as unknown as Review[]) || [];
+      setReviews(list);
+
+      const avg = list.length ? list.reduce((sum, r) => sum + (r.nota || 0), 0) / list.length : 0;
+      setAvgRating(avg);
+    };
+
+    loadReviews();
+  }, [id]);
+
+  useEffect(() => {
+    const loadMyReview = async () => {
+      if (!id || !user?.id) return;
+
+      const { data, error } = await supabase
+        .from('avaliacoes_produto')
+        .select('nota, comentario')
+        .eq('produto_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (!error && data) {
+        setMyRating((data as any).nota || 0);
+        setMyComment(data.comentario || '');
+      }
+    };
+
+    loadMyReview();
+  }, [id, user?.id]);
+
+  const submitReview = async () => {
+    if (!id) return;
+    if (!user?.id) {
+      setReviewError('Faça login para avaliar.');
+      return;
+    }
+    if (!myRating || myRating < 1 || myRating > 5) {
+      setReviewError('Selecione uma nota de 1 a 5.');
+      return;
+    }
+
+    setSavingReview(true);
+    setReviewError('');
+
+    const { error } = await supabase
+      .from('avaliacoes_produto')
+      .upsert(
+        {
+          produto_id: id,
+          user_id: user.id,
+          nota: myRating,
+          comentario: myComment?.trim() ? myComment.trim() : null,
+        },
+        { onConflict: 'produto_id,user_id' }
+      );
+
+    if (error) {
+      console.error('Erro ao salvar avaliação:', error);
+      const raw = (error as any)?.message || '';
+      const msgLower = String(raw).toLowerCase();
+      if (msgLower.includes('does not exist') || msgLower.includes('relation') || msgLower.includes('42p01')) {
+        setReviewError('Tabela de avaliações não existe no Supabase. Rode o arquivo supabase_avaliacoes.sql no Supabase (SQL Editor) e recarregue a página.');
+      } else if (msgLower.includes('column') || msgLower.includes('42703')) {
+        setReviewError('Estrutura da tabela de avaliações está diferente do esperado. Confirme que existe a coluna "nota" (int).');
+      } else if (msgLower.includes('permission') || msgLower.includes('rls') || msgLower.includes('not allowed')) {
+        setReviewError('Sem permissão para salvar avaliações (RLS). Verifique as policies da tabela avaliacoes_produto.');
+      } else {
+        setReviewError('Não foi possível salvar sua avaliação.');
+      }
+      setSavingReview(false);
+      return;
+    }
+
+    setSavingReview(false);
+
+    const { data: reviewsData } = await supabase
+      .from('avaliacoes_produto')
+      .select('id, user_id, nota, comentario, created_at')
+      .eq('produto_id', id)
+      .order('created_at', { ascending: false });
+
+    const list = (reviewsData as unknown as Review[]) || [];
+    setReviews(list);
+    const avg = list.length ? list.reduce((sum, r) => sum + (r.nota || 0), 0) / list.length : 0;
+    setAvgRating(avg);
+  };
+
   const handleAddToCart = () => {
     if (!product) return;
     const item: CartItem = {
@@ -181,6 +326,102 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
                   style={{ backgroundImage: `url("${mainImage || ''}")` }}
                 />
               </div>
+
+              {product && (
+                <div className="rounded-xl border border-gray-200 bg-white p-4">
+                  <h3 className="text-lg font-bold text-gray-900 mb-3">Avaliações</h3>
+
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="flex items-center">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <span
+                          key={i}
+                          className={`material-symbols-outlined text-lg ${i < Math.round(avgRating) ? 'text-yellow-500' : 'text-gray-300'}`}
+                        >
+                          star
+                        </span>
+                      ))}
+                    </div>
+                    <div className="text-sm text-gray-600">
+                      {avgRating ? avgRating.toFixed(1).replace('.', ',') : '0,0'} ({reviews.length})
+                    </div>
+                  </div>
+
+                  {reviewError && (
+                    <div className="mb-4 bg-red-50 text-red-600 px-4 py-3 rounded-lg text-sm">
+                      {reviewError}
+                    </div>
+                  )}
+
+                  {user ? (
+                    <div className="mb-4">
+                      <div className="text-sm font-semibold text-gray-900 mb-3">Sua avaliação</div>
+                      <div className="flex items-center gap-1 mb-3">
+                        {Array.from({ length: 5 }).map((_, i) => {
+                          const val = i + 1;
+                          const active = val <= myRating;
+                          return (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => setMyRating(val)}
+                              className={`p-1 ${active ? 'text-yellow-500' : 'text-gray-300'}`}
+                              aria-label={`Nota ${val}`}
+                            >
+                              <span className="material-symbols-outlined">star</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <textarea
+                        value={myComment}
+                        onChange={(e) => setMyComment(e.target.value)}
+                        className="w-full min-h-[96px] px-3 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon"
+                        placeholder="Escreva um comentário (opcional)"
+                      />
+                      <button
+                        type="button"
+                        onClick={submitReview}
+                        disabled={savingReview}
+                        className="mt-3 inline-flex items-center justify-center px-4 py-2 rounded-lg bg-neon text-[#132210] font-bold disabled:opacity-50"
+                      >
+                        {savingReview ? 'Salvando...' : 'Salvar avaliação'}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mb-4 text-sm text-gray-600">
+                      Faça login para avaliar este produto.
+                    </div>
+                  )}
+
+                  <div className="space-y-3">
+                    {reviews.length === 0 ? (
+                      <div className="text-sm text-gray-600">Nenhuma avaliação ainda.</div>
+                    ) : (
+                      reviews.map((r) => (
+                        <div key={r.id} className="rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-sm font-semibold text-gray-900 truncate">Cliente</div>
+                            <div className="flex items-center">
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <span
+                                  key={i}
+                                  className={`material-symbols-outlined text-base ${i < r.nota ? 'text-yellow-500' : 'text-gray-300'}`}
+                                >
+                                  star
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          {r.comentario && (
+                            <div className="mt-2 text-sm text-gray-700 whitespace-pre-wrap">{r.comentario}</div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Informações do Produto */}
@@ -283,6 +524,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
                   </div>
                 </details>
               </div>
+
             </div>
           </div>
         </div>

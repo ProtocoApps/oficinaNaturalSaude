@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 
 type Produto = {
@@ -23,7 +24,7 @@ const imageByProdutoId: Record<string, string> = {
 const GRAMAS_OPTIONS = ['50g', '100g', '200g', '500g', '1kg'];
 
 const AdminProdutos: React.FC = () => {
-  const [searchTerm] = useState('');
+  const { searchTerm } = useOutletContext<{ searchTerm: string }>();
   const [produtos, setProdutos] = useState<Produto[]>([]);
   const [categorias, setCategorias] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);

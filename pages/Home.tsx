@@ -158,7 +158,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
             className="h-full w-full bg-cover bg-center"
             style={{
               backgroundImage:
-                'url("https://images.pexels.com/photos/7418387/pexels-photo-7418387.jpeg?auto=compress&cs=tinysrgb&w=1600")',
+                'url("https://images.pexels.com/photos/2384574/pexels-photo-2384574.jpeg?auto=compress&cs=tinysrgb&w=1600")',
             }}
           ></div>
           <div className="absolute inset-0 bg-gradient-to-t from-background-dark/80 via-background-dark/30 to-transparent"></div>

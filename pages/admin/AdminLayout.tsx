@@ -9,6 +9,7 @@ const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('Admin');
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -103,6 +104,8 @@ const AdminLayout: React.FC = () => {
               className="w-full pl-10 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon"
               placeholder="Buscar pedidos, produtos..."
               type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <div className="flex items-center gap-4">
@@ -145,7 +148,7 @@ const AdminLayout: React.FC = () => {
 
         {/* Page Content */}
         <div className="p-8">
-          <Outlet />
+          <Outlet context={{ searchTerm }} />
         </div>
       </main>
     </div>
