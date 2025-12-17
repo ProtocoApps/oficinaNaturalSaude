@@ -9,6 +9,12 @@ type CheckoutProps = {
   items: CartItem[];
 };
 
+type ShippingOption = {
+  coProduto: string;
+  valor: number | null;
+  prazoDias: number | null;
+};
+
 const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -29,9 +35,25 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   const [tipoEntrega, setTipoEntrega] = useState('sedex');
   const [loadingCep, setLoadingCep] = useState(false);
 
+  const [shippingQuotes, setShippingQuotes] = useState<{ pac?: ShippingOption; sedex?: ShippingOption } | null>(null);
+  const [loadingFrete, setLoadingFrete] = useState(false);
+  const [freteError, setFreteError] = useState('');
+
   // Cálculos
   const subtotal = items.reduce((acc, item) => acc + item.price * item.qty, 0);
-  const frete = tipoEntrega === 'retirada' ? 0 : 15;
+  const selectedQuote =
+    tipoEntrega === 'pac'
+      ? shippingQuotes?.pac
+      : tipoEntrega === 'sedex'
+        ? shippingQuotes?.sedex
+        : null;
+
+  const frete =
+    tipoEntrega === 'retirada'
+      ? 0
+      : typeof selectedQuote?.valor === 'number'
+        ? selectedQuote.valor
+        : 15;
   const total = subtotal + frete;
 
   // Buscar CEP
@@ -61,6 +83,90 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
       buscarCep();
     }
   }, [cep]);
+
+  const parseWeightToGrams = (val?: string | null) => {
+    if (!val) return null;
+    const s = String(val).trim().toLowerCase().replace(',', '.');
+    const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+    if (!Number.isFinite(n) || n <= 0) return null;
+    if (s.includes('kg')) return Math.round(n * 1000);
+    if (s.includes('g')) return Math.round(n);
+    return Math.round(n);
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      const cepDestino = cep.replace(/\D/g, '');
+      if (tipoEntrega === 'retirada') {
+        setShippingQuotes(null);
+        setFreteError('');
+        return;
+      }
+      if (cepDestino.length !== 8) {
+        setShippingQuotes(null);
+        setFreteError('');
+        return;
+      }
+
+      setLoadingFrete(true);
+      setFreteError('');
+
+      try {
+        const ids = items.map((i) => i.id);
+        let pesoTotalGramas = 0;
+
+        if (ids.length > 0) {
+          const { data, error } = await supabase
+            .from('produtos')
+            .select('id, gramas')
+            .in('id', ids);
+
+          if (!error && data) {
+            const byId = new Map<string, any>(data.map((p: any) => [p.id, p]));
+            for (const item of items) {
+              const p = byId.get(item.id);
+              const grams = parseWeightToGrams(p?.gramas);
+              pesoTotalGramas += (grams ?? 100) * item.qty;
+            }
+          } else {
+            for (const item of items) pesoTotalGramas += 100 * item.qty;
+          }
+        }
+
+        const resp = await fetch('/.netlify/functions/correios-frete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            cepDestino,
+            pesoGramas: pesoTotalGramas,
+            comprimento: 20,
+            largura: 20,
+            altura: 20,
+          }),
+        });
+
+        if (!resp.ok) {
+          const t = await resp.text();
+          setShippingQuotes(null);
+          setFreteError(t || 'Erro ao calcular frete.');
+          return;
+        }
+
+        const json = await resp.json();
+        setShippingQuotes({
+          pac: json?.pac || undefined,
+          sedex: json?.sedex || undefined,
+        });
+      } catch (e: any) {
+        setShippingQuotes(null);
+        setFreteError(e?.message || 'Erro ao calcular frete.');
+      } finally {
+        setLoadingFrete(false);
+      }
+    };
+
+    run();
+  }, [cep, tipoEntrega, items]);
 
   // Validação
   const canContinue = customerName.trim() !== '' && 
@@ -96,7 +202,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
       // Adicionar frete como item se houver
       if (frete > 0) {
         itemsPayload.push({
-          title: 'Frete SEDEX',
+          title: tipoEntrega === 'pac' ? 'Frete PAC' : 'Frete SEDEX',
           quantity: 1,
           unit_price: frete,
           currency_id: 'BRL'
@@ -289,7 +395,28 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
             {/* Tipo de Entrega */}
             <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
               <h2 className="text-2xl font-bold mb-6 text-gray-900">Tipo de Entrega</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setTipoEntrega('pac')}
+                  className={`p-6 rounded-xl border-2 transition-all ${
+                    tipoEntrega === 'pac'
+                      ? 'border-neon bg-neon/5'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <div className="text-center">
+                    <span className="material-symbols-outlined text-4xl mb-2 text-neon">local_shipping</span>
+                    <h3 className="font-bold text-lg">PAC</h3>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {shippingQuotes?.pac?.prazoDias ? `Entrega em até ${shippingQuotes.pac.prazoDias} dias úteis` : 'Entrega econômica'}
+                    </p>
+                    <p className="text-neon font-bold mt-2">
+                      {loadingFrete ? 'Calculando...' : typeof shippingQuotes?.pac?.valor === 'number' ? `R$ ${shippingQuotes.pac.valor.toFixed(2).replace('.', ',')}` : 'R$ 15,00'}
+                    </p>
+                  </div>
+                </button>
+
                 <button
                   type="button"
                   onClick={() => setTipoEntrega('sedex')}
@@ -302,8 +429,12 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                   <div className="text-center">
                     <span className="material-symbols-outlined text-4xl mb-2 text-neon">local_shipping</span>
                     <h3 className="font-bold text-lg">SEDEX</h3>
-                    <p className="text-sm text-gray-600 mt-1">Entrega em até 5 dias úteis</p>
-                    <p className="text-neon font-bold mt-2">R$ 15,00</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {shippingQuotes?.sedex?.prazoDias ? `Entrega em até ${shippingQuotes.sedex.prazoDias} dias úteis` : 'Entrega expressa'}
+                    </p>
+                    <p className="text-neon font-bold mt-2">
+                      {loadingFrete ? 'Calculando...' : typeof shippingQuotes?.sedex?.valor === 'number' ? `R$ ${shippingQuotes.sedex.valor.toFixed(2).replace('.', ',')}` : 'R$ 15,00'}
+                    </p>
                   </div>
                 </button>
                 
@@ -327,7 +458,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
             </div>
 
             {/* Endereço de Entrega */}
-            {tipoEntrega === 'sedex' && (
+            {(tipoEntrega === 'sedex' || tipoEntrega === 'pac') && (
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
                 <h2 className="text-2xl font-bold mb-6 text-gray-900">Endereço de Entrega</h2>
                 <div className="space-y-6">
@@ -352,6 +483,9 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                     </div>
                     {showErrors && !cep.trim() && (
                       <p className="text-red-500 text-sm mt-1">Campo obrigatório</p>
+                    )}
+                    {!!freteError && (
+                      <p className="text-red-500 text-sm mt-1">{freteError}</p>
                     )}
                   </div>
 

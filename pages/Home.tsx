@@ -158,21 +158,21 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
             className="h-full w-full bg-cover bg-center"
             style={{
               backgroundImage:
-                'url("https://images.pexels.com/photos/2384574/pexels-photo-2384574.jpeg?auto=compress&cs=tinysrgb&w=1600")',
+                'url("https://images.pexels.com/photos/3847450/pexels-photo-3847450.jpeg?auto=compress&cs=tinysrgb&w=1600")',
             }}
           ></div>
           <div className="absolute inset-0 bg-gradient-to-t from-background-dark/80 via-background-dark/30 to-transparent"></div>
         </div>
 
-        <div className="relative z-10 flex h-full flex-col items-center justify-center text-center text-white px-4">
-          <div className="max-w-4xl mb-6">
-            <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold tracking-tighter animate-typing overflow-hidden border-r-4 border-neon whitespace-nowrap mx-auto">
-              O Futuro do Bem-Estar
-            </h1>
-          </div>
-          <p className="text-lg md:text-xl mb-10 max-w-2xl text-white/90">
-            Descubra a pureza e a potência dos nossos ingredientes orgânicos. Sinta a diferença.
-          </p>
+        <div className="absolute inset-0 z-10 flex items-start justify-center pointer-events-none px-4 pt-10">
+          <img
+            src="/24.png"
+            alt=""
+            className="max-h-[55vh] w-auto max-w-[90vw] object-contain"
+          />
+        </div>
+
+        <div className="relative z-20 flex h-full flex-col items-center justify-end text-center px-4 pb-20">
           <div className="flex gap-4 flex-col sm:flex-row">
             <Link
               to="/products"
@@ -383,6 +383,23 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
               <div>
                 <p className="font-bold text-gray-900">Atendimento</p>
                 <p className="text-sm text-gray-600">Tire suas dúvidas com nossa equipe.</p>
+                <a
+                  href="https://www.instagram.com/"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-neon hover:underline"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path d="M7.5 2h9A5.5 5.5 0 0 1 22 7.5v9A5.5 5.5 0 0 1 16.5 22h-9A5.5 5.5 0 0 1 2 16.5v-9A5.5 5.5 0 0 1 7.5 2Zm0 2A3.5 3.5 0 0 0 4 7.5v9A3.5 3.5 0 0 0 7.5 20h9A3.5 3.5 0 0 0 20 16.5v-9A3.5 3.5 0 0 0 16.5 4h-9Zm11 1.5a1 1 0 1 1 0 2 1 1 0 0 1 0-2ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+                  </svg>
+                  Nosso Instagram
+                </a>
               </div>
             </div>
           </div>

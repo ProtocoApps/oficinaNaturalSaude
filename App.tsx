@@ -51,8 +51,12 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, user, onLoginClick, onLo
     <header className={`sticky top-0 z-50 backdrop-blur-md border-b border-gray-100 ${headerBg} transition-colors duration-300`}>
       <div className="mx-auto flex max-w-[1400px] items-center justify-between whitespace-nowrap px-4 sm:px-8 py-4">
         <Link to="/" className="flex items-center gap-2 group">
-          <span className="material-symbols-outlined text-3xl transition-colors duration-300 text-neon">eco</span>
-          <h2 className={`text-xl font-bold tracking-tighter ${textColor} group-hover:opacity-80`}>oficina da saude natural</h2>
+          <img
+            src="/WhatsApp_Image_2025-12-17_at_16.14.11__1_-removebg-preview.png"
+            alt="Oficina da Saúde Natural"
+            className="h-10 w-auto object-contain"
+          />
+          <span className="sr-only">oficina da saude natural</span>
         </Link>
         
         <nav className="hidden md:flex items-center gap-8">
