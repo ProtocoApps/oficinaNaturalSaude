@@ -110,6 +110,13 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
         return;
       }
 
+      // Só calcula frete se tiver itens e CEP válido
+      if (items.length === 0) {
+        setShippingQuotes(null);
+        setFreteError('');
+        return;
+      }
+
       setLoadingFrete(true);
       setFreteError('');
 
