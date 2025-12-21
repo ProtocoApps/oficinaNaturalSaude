@@ -96,6 +96,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   };
 
   useEffect(() => {
+    console.log('useEffect do frete acionado! Items:', items.length);
     const run = async () => {
       const cepDestino = cep.replace(/\D/g, '');
       if (tipoEntrega === 'retirada') {
@@ -125,23 +126,32 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
             .in('id', ids);
 
           if (!error && data) {
+            console.log('Dados dos produtos do banco:', data);
             const byId = new Map<string, any>(data.map((p: any) => [p.id, p]));
             
             for (const item of items) {
               const produtoId = item.id.split('-')[0]; // ID base sem variação
               const produto = byId.get(produtoId);
               
+              console.log('Item do carrinho:', item);
+              console.log('Produto correspondente:', produto);
+              
               if (produto?.gramas) {
                 // Se tem gramas no banco, usa esse valor
                 const pesoItem = parseInt(produto.gramas) || 100;
+                console.log(`Peso do produto: ${pesoItem}g, Quantidade: ${item.qty}`);
                 pesoTotalGramas += (pesoItem * item.qty);
+                console.log(`Peso adicionado: ${pesoItem * item.qty}g, Total acumulado: ${pesoTotalGramas}g`);
               } else {
                 // Se não tem gramas, usa 100g como padrão
+                console.log('Produto sem gramas, usando 100g padrão');
                 pesoTotalGramas += (100 * item.qty);
+                console.log(`Peso adicionado: ${100 * item.qty}g, Total acumulado: ${pesoTotalGramas}g`);
               }
             }
           } else {
             // Se erro na query, usa 100g padrão
+            console.log('Erro na query ou sem dados, usando 100g padrão');
             pesoTotalGramas = items.reduce((total, item) => total + (100 * item.qty), 0);
           }
         }
