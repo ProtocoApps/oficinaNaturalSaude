@@ -252,33 +252,12 @@ const App: React.FC = () => {
           p.id === item.id ? { ...p, qty: p.qty + item.qty } : p
         );
         console.log('Carrinho atualizado (somando):', updated);
-        
-        // Forçar recálculo do frete no checkout
-        setTimeout(() => {
-          const checkoutElement = document.querySelector('[data-checkout-refresh]');
-          if (checkoutElement) {
-            const event = new CustomEvent('cartUpdated', { detail: updated });
-            checkoutElement.dispatchEvent(event);
-          }
-        }, 100);
-        
         return updated;
       }
       
       // Se não encontrar, adiciona como novo item
       console.log('Adicionando como novo item');
-      const newCart = [...prev, item];
-      
-      // Forçar recálculo do frete no checkout
-      setTimeout(() => {
-        const checkoutElement = document.querySelector('[data-checkout-refresh]');
-        if (checkoutElement) {
-          const event = new CustomEvent('cartUpdated', { detail: newCart });
-          checkoutElement.dispatchEvent(event);
-        }
-      }, 100);
-      
-      return newCart;
+      return [...prev, item];
     });
 
     setToast({ message: "Produto adicionado ao carrinho!", type: 'success' });
