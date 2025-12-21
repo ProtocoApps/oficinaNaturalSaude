@@ -10,13 +10,27 @@ export default defineConfig(({ mode }) => {
         strictPort: true,
         host: '0.0.0.0',
         proxy: {
-          '/api/mercadopago': {
+          '/.netlify/functions/mercadopago-preference': {
             target: 'https://api.mercadopago.com',
             changeOrigin: true,
-            rewrite: (path) => path.replace(/^\/api\/mercadopago/, ''),
-            configure: (proxy, options) => {
-              proxy.on('proxyReq', (proxyReq, req, res) => {
-                proxyReq.setHeader('Authorization', 'Bearer TEST-871494466911326-081800-a42ce7ea15d8c26c062451b6b1bde2a5-2336152427');
+            rewrite: () => '/checkout/preferences',
+            configure: (proxy) => {
+              proxy.on('proxyReq', (proxyReq) => {
+                proxyReq.setHeader('Authorization', 'Bearer APP_USR-657378231046666-041018-9fa8621e405bab4115109307123ee12c-1099187091');
+              });
+            }
+          },
+          '/.netlify/functions/mercadopago-status': {
+            target: 'https://api.mercadopago.com',
+            changeOrigin: true,
+            rewrite: (path) => {
+              const url = new URL(path, 'http://localhost');
+              const id = url.searchParams.get('id');
+              return `/v1/payments/search?external_reference=${id}`;
+            },
+            configure: (proxy) => {
+              proxy.on('proxyReq', (proxyReq) => {
+                proxyReq.setHeader('Authorization', 'Bearer APP_USR-657378231046666-041018-9fa8621e405bab4115109307123ee12c-1099187091');
               });
             }
           }

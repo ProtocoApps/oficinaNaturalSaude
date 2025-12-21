@@ -44,11 +44,11 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, user, onLoginClick, onLo
   const isHome = location.pathname === '/';
   
   // Dynamic header styles based on page to match the screenshots
-  const headerBg = isHome ? "bg-background-light/80" : "bg-white/80";
-  const textColor = isHome ? "text-text-light-bg" : "text-gray-900";
+  const headerBg = isHome ? "bg-white/95 backdrop-blur-lg shadow-lg" : "bg-white/95 backdrop-blur-lg shadow-lg";
+  const textColor = isHome ? "text-gray-900" : "text-gray-900";
   
   return (
-    <header className={`sticky top-0 z-50 backdrop-blur-md border-b border-gray-100 ${headerBg} transition-colors duration-300`}>
+    <header className={`sticky top-0 z-50 ${headerBg} transition-all duration-300 border-b border-gray-100/50`}>
       <div className="mx-auto flex max-w-[1400px] items-center justify-between whitespace-nowrap px-4 sm:px-8 py-4">
         <Link to="/" className="flex items-center gap-2 group">
           <img
@@ -59,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, user, onLoginClick, onLo
           <span className="sr-only">oficina da saude natural</span>
         </Link>
         
-        <nav className="hidden md:flex items-center gap-8">
+        <nav className="hidden lg:flex items-center gap-6">
           {[
             { name: 'Início', path: '/' },
             { name: 'Produtos', path: '/products' },
@@ -68,18 +68,25 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, user, onLoginClick, onLo
             <Link 
               key={item.path}
               to={item.path} 
-              className={`text-sm font-medium hover:text-neon transition-colors ${textColor}`}
+              className={`relative px-4 py-2 text-sm font-medium transition-all duration-300 ${
+                location.pathname === item.path 
+                  ? 'text-neon font-semibold' 
+                  : `${textColor} hover:text-neon`
+              }`}
             >
               {item.name}
+              {location.pathname === item.path && (
+                <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-neon rounded-full"></span>
+              )}
             </Link>
           ))}
         </nav>
 
-        <div className="flex items-center gap-3">
-          <Link to="/cart" className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors relative">
-            <span className={`material-symbols-outlined ${textColor}`}>shopping_bag</span>
+        <div className="flex items-center gap-2">
+          <Link to="/cart" className="group relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-gray-100 hover:bg-neon/20 transition-all duration-300 hover:scale-110">
+            <span className={`material-symbols-outlined ${textColor} group-hover:text-neon`}>shopping_bag</span>
             {cartCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex min-w-[16px] h-[16px] items-center justify-center rounded-full bg-neon text-[10px] leading-none font-bold text-[#132210] border border-white shadow-sm">
+              <span className="absolute -top-1 -right-1 flex min-w-[18px] h-[18px] items-center justify-center rounded-full bg-neon text-[10px] leading-none font-bold text-[#132210] border-2 border-white shadow-md animate-bounce">
                 <span className="inline-block translate-y-[0.5px]">{cartCount}</span>
               </span>
             )}
@@ -88,31 +95,39 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, user, onLoginClick, onLo
           {/* User Profile */}
           {user ? (
             <div className="relative group">
-              <button className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-                <span className={`material-symbols-outlined ${textColor}`}>person</span>
+              <button className="group relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-gray-100 hover:bg-neon/20 transition-all duration-300 hover:scale-110">
+                <span className={`material-symbols-outlined ${textColor} group-hover:text-neon`}>person</span>
               </button>
-              <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 overflow-hidden">
-                <div className="p-3 border-b border-gray-100 bg-gray-50/50">
-                  <p className="text-sm font-medium text-gray-900 truncate" title={user.email}>
-                    {user.email}
-                  </p>
+              <div className="absolute right-0 mt-3 w-64 bg-white rounded-xl shadow-xl border border-gray-200 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 z-50 overflow-hidden transform group-hover:translate-y-0 translate-y-2">
+                <div className="p-4 border-b border-gray-100 bg-gradient-to-r from-neon/5 to-emerald-50">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-neon/20">
+                      <span className="material-symbols-outlined text-neon">person</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900 truncate" title={user.email}>
+                        {user.email}
+                      </p>
+                      <p className="text-xs text-gray-500">Conta Ativa</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-1">
+                <div className="p-2">
                   {user.email === 'lojaoficinadasaude@gmail.com' && (
                     <Link
                       to="/admin/dashboard"
-                      className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded mb-1 font-medium"
+                      className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm text-gray-700 hover:bg-gradient-to-r hover:from-neon/10 hover:to-emerald-50 rounded-lg mb-1 font-medium transition-all duration-200"
                     >
-                      <span className="material-symbols-outlined text-lg">dashboard</span>
-                      Painel Admin
+                      <span className="material-symbols-outlined text-lg text-neon">dashboard</span>
+                      <span>Painel Admin</span>
                     </Link>
                   )}
                   <button
                     onClick={onLogout}
-                    className="flex items-center gap-2 w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded"
+                    className="flex items-center gap-3 w-full text-left px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200 font-medium"
                   >
-                    <span className="material-symbols-outlined text-lg">logout</span>
-                    Sair
+                    <span className="material-symbols-outlined text-lg text-red-600">logout</span>
+                    <span>Sair</span>
                   </button>
                 </div>
               </div>
@@ -120,14 +135,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, user, onLoginClick, onLo
           ) : (
             <button
               onClick={onLoginClick}
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+              className="group relative flex h-10 w-10 cursor-pointer items-center justify-center rounded-full bg-gray-100 hover:bg-neon/20 transition-all duration-300 hover:scale-110"
             >
-              <span className={`material-symbols-outlined ${textColor}`}>person</span>
+              <span className={`material-symbols-outlined ${textColor} group-hover:text-neon`}>person</span>
             </button>
           )}
           
-          <button className="md:hidden flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-            <span className={`material-symbols-outlined ${textColor}`}>menu</span>
+          <button className="lg:hidden flex h-10 w-10 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gray-100 hover:bg-neon/20 transition-all duration-300 hover:scale-110">
+            <span className={`material-symbols-outlined ${textColor} group-hover:text-neon`}>menu</span>
           </button>
         </div>
       </div>
