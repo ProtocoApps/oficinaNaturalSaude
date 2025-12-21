@@ -15,6 +15,7 @@ type UIProduct = {
   price: number;
   image: string;
   variacoes?: Variacao[] | null;
+  gramas?: string | null;
 };
 
 type Review = {
@@ -96,7 +97,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
       if (!hasInitialData) {
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status, imagens, variacoes')
+          .select('id, produto_id, produto_nome, preco, status, imagens, variacoes, gramas')
           .eq('id', id)
           .single();
 
@@ -118,6 +119,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
             price: data.preco,
             image,
             variacoes: data.variacoes,
+            gramas: (data as any).gramas,
           });
         }
       }
@@ -272,9 +274,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
 
   const handleAddToCart = () => {
     if (!product) return;
+
+    const effectiveVariacoes: Variacao[] | null =
+      product.variacoes && product.variacoes.length > 0
+        ? product.variacoes
+        : product.gramas
+          ? [{ gramas: product.gramas, preco: product.price }]
+          : null;
     
     // Se tem variações, precisa selecionar uma
-    if (product.variacoes && product.variacoes.length > 0 && !selectedVariacao) {
+    if (effectiveVariacoes && effectiveVariacoes.length > 0 && !selectedVariacao) {
       alert('Por favor, selecione o peso do produto antes de adicionar ao carrinho.');
       return;
     }
@@ -457,13 +466,19 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
                 </p>
               )}
 
-              {product && product.variacoes && product.variacoes.length > 0 && (
+              {product && ((product.variacoes && product.variacoes.length > 0) || !!product.gramas) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Selecione o peso <span className="text-red-500">*</span>
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {product.variacoes.map((variacao, index) => (
+                    {(
+                      product.variacoes && product.variacoes.length > 0
+                        ? product.variacoes
+                        : product.gramas
+                          ? [{ gramas: product.gramas, preco: product.price }]
+                          : []
+                    ).map((variacao, index) => (
                       <button
                         key={index}
                         type="button"

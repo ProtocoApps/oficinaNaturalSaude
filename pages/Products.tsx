@@ -25,6 +25,7 @@ type UIProduct = {
   category: string;
   brand: string;
   variacoes?: Variacao[] | null;
+  gramas?: string | null;
 };
 
 type ProductsProps = {
@@ -98,7 +99,13 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
         if (cached) {
           try {
             const parsed: UIProduct[] = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) {
+            // Se cache for antigo (sem gramas/variacoes), ignora
+            const cacheIsOld =
+              Array.isArray(parsed) &&
+              parsed.length > 0 &&
+              parsed.some((p) => (p as any).gramas === undefined && (p as any).variacoes === undefined);
+
+            if (!cacheIsOld && Array.isArray(parsed) && parsed.length > 0) {
               setProducts(parsed);
               setLoading(false);
             }
@@ -109,7 +116,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
 
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status, imagens, categoria, variacoes');
+          .select('id, produto_id, produto_nome, preco, status, imagens, categoria, variacoes, gramas');
 
         if (error) {
           console.error('Erro ao carregar produtos do Supabase:', error);
@@ -135,6 +142,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
               category,
               brand,
               variacoes: (p as any).variacoes,
+              gramas: (p as any).gramas,
             };
           });
 
@@ -154,7 +162,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
   }, []);
   const handleAddToCart = (product: UIProduct) => {
     // Se tem variações, redireciona para a página do produto
-    if (product.variacoes && product.variacoes.length > 0) {
+    if ((product.variacoes && product.variacoes.length > 0) || !!product.gramas) {
       navigate(`/product/${product.id}`);
       return;
     }

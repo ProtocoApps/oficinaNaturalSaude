@@ -10,6 +10,7 @@ type DbProduto = {
   preco: number | null;
   status: string | null;
   imagens?: string[] | null;
+  gramas?: string | null;
 };
 
 type Variacao = {
@@ -24,6 +25,7 @@ type UIProduct = {
   image: string;
   desc: string;
   variacoes?: Variacao[] | null;
+  gramas?: string | null;
 };
 
 type Video = {
@@ -105,7 +107,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
       // ... carregar produtos (código existente mantido abaixo)
       const { data, error } = await supabase
         .from('produtos')
-        .select('id, produto_id, produto_nome, preco, status, imagens, variacoes')
+        .select('id, produto_id, produto_nome, preco, status, imagens, variacoes, gramas')
         .limit(8);
 
       if (error) {
@@ -127,6 +129,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
             image,
             desc: 'Produto natural selecionado com cuidado para o seu bem-estar.',
             variacoes: (p as any).variacoes,
+            gramas: (p as any).gramas,
           };
         });
 
@@ -150,7 +153,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
 
   const handleAddToCart = (product: UIProduct) => {
     // Se tem variações, redireciona para a página do produto
-    if (product.variacoes && product.variacoes.length > 0) {
+    if ((product.variacoes && product.variacoes.length > 0) || !!product.gramas) {
       navigate(`/product/${product.id}`);
       return;
     }
