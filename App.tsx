@@ -238,17 +238,29 @@ const App: React.FC = () => {
       return;
     }
 
-    setToast({ message: "Produto adicionado ao carrinho!", type: 'success' });
+    console.log('Adicionando ao carrinho:', item);
 
     setCartItems((prev) => {
+      console.log('Carrinho atual:', prev);
+      
+      // Primeiro tenta encontrar pelo ID exato
       const existing = prev.find((p) => p.id === item.id);
+      console.log('Produto existente com mesmo ID:', existing);
+      
       if (existing) {
-        return prev.map((p) =>
+        const updated = prev.map((p) =>
           p.id === item.id ? { ...p, qty: p.qty + item.qty } : p
         );
+        console.log('Carrinho atualizado (somando):', updated);
+        return updated;
       }
+      
+      // Se não encontrar, adiciona como novo item
+      console.log('Adicionando como novo item');
       return [...prev, item];
     });
+
+    setToast({ message: "Produto adicionado ao carrinho!", type: 'success' });
   };
 
   const removeFromCart = (id: string) => {
