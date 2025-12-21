@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import type { CartItem } from '../App';
 
@@ -12,12 +12,18 @@ type DbProduto = {
   imagens?: string[] | null;
 };
 
+type Variacao = {
+  gramas: string;
+  preco: number;
+};
+
 type UIProduct = {
   id: string;
   name: string;
   price: number;
   image: string;
   desc: string;
+  variacoes?: Variacao[] | null;
 };
 
 type Video = {
@@ -89,6 +95,7 @@ type HomeProps = {
 };
 
 const Home: React.FC<HomeProps> = ({ addToCart }) => {
+  const navigate = useNavigate();
   const [featuredProducts, setFeaturedProducts] = useState<UIProduct[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videos, setVideos] = useState<Video[]>([]);
@@ -98,7 +105,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
       // ... carregar produtos (código existente mantido abaixo)
       const { data, error } = await supabase
         .from('produtos')
-        .select('id, produto_id, produto_nome, preco, status, imagens')
+        .select('id, produto_id, produto_nome, preco, status, imagens, variacoes')
         .limit(8);
 
       if (error) {
@@ -119,6 +126,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
             price: p.preco as number,
             image,
             desc: 'Produto natural selecionado com cuidado para o seu bem-estar.',
+            variacoes: (p as any).variacoes,
           };
         });
 
@@ -141,6 +149,12 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
   }, []);
 
   const handleAddToCart = (product: UIProduct) => {
+    // Se tem variações, redireciona para a página do produto
+    if (product.variacoes && product.variacoes.length > 0) {
+      navigate(`/product/${product.id}`);
+      return;
+    }
+    
     const item: CartItem = {
       id: product.id,
       name: product.name,

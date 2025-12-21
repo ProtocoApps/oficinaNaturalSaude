@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import type { CartItem } from '../App';
 
@@ -11,6 +11,11 @@ type DbProduto = {
   status: string | null;
 };
 
+type Variacao = {
+  gramas: string;
+  preco: number;
+};
+
 type UIProduct = {
   id: string;
   produtoId: string;
@@ -19,6 +24,7 @@ type UIProduct = {
   image: string;
   category: string;
   brand: string;
+  variacoes?: Variacao[] | null;
 };
 
 type ProductsProps = {
@@ -73,6 +79,7 @@ const parsePriceToNumber = (price: string): number => {
 };
 
 const Products: React.FC<ProductsProps> = ({ addToCart }) => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<UIProduct[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -102,7 +109,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
 
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status, imagens, categoria');
+          .select('id, produto_id, produto_nome, preco, status, imagens, categoria, variacoes');
 
         if (error) {
           console.error('Erro ao carregar produtos do Supabase:', error);
@@ -127,6 +134,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
               image,
               category,
               brand,
+              variacoes: (p as any).variacoes,
             };
           });
 
@@ -145,6 +153,12 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
     loadProducts();
   }, []);
   const handleAddToCart = (product: UIProduct) => {
+    // Se tem variações, redireciona para a página do produto
+    if (product.variacoes && product.variacoes.length > 0) {
+      navigate(`/product/${product.id}`);
+      return;
+    }
+    
     const item: CartItem = {
       id: product.id,
       name: product.name,
