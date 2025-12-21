@@ -282,17 +282,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
           ? [{ gramas: product.gramas, preco: product.price }]
           : null;
     
-    // Se tem variações, precisa selecionar uma
-    if (effectiveVariacoes && effectiveVariacoes.length > 0 && !selectedVariacao) {
+    // Se tem múltiplas opções de gramas, precisa selecionar uma
+    if (effectiveVariacoes && effectiveVariacoes.length > 1 && !selectedVariacao) {
       alert('Por favor, selecione o peso do produto antes de adicionar ao carrinho.');
       return;
     }
     
-    const finalPrice = selectedVariacao ? selectedVariacao.preco : product.price;
-    const finalName = selectedVariacao ? `${product.name} - ${selectedVariacao.gramas}` : product.name;
+    // Se tem só uma opção, seleciona automaticamente
+    const selected = selectedVariacao || (effectiveVariacoes && effectiveVariacoes.length === 1 ? effectiveVariacoes[0] : null);
+    
+    const finalPrice = selected ? selected.preco : product.price;
+    const finalName = selected ? `${product.name} - ${selected.gramas}` : product.name;
     
     const item: CartItem = {
-      id: selectedVariacao ? `${product.id}-${selectedVariacao.gramas}` : product.id,
+      id: selected ? `${product.id}-${selected.gramas}` : product.id,
       name: finalName,
       price: finalPrice,
       image: product.image,
@@ -468,43 +471,54 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
 
               {product && ((product.variacoes && product.variacoes.length > 0) || !!product.gramas) && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Selecione o peso <span className="text-red-500">*</span>
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {(
-                      product.variacoes && product.variacoes.length > 0
-                        ? product.variacoes
-                        : product.gramas
-                          ? [{ gramas: product.gramas, preco: product.price }]
-                          : []
-                    ).map((variacao, index) => (
-                      <button
-                        key={index}
-                        type="button"
-                        onClick={() => setSelectedVariacao(variacao)}
-                        className={`px-4 py-2 rounded-full border-2 font-medium transition-all ${
-                          selectedVariacao?.gramas === variacao.gramas
-                            ? 'border-neon bg-neon text-[#132210]'
-                            : 'border-gray-300 bg-white text-gray-700 hover:border-neon'
-                        }`}
-                      >
-                        {variacao.gramas} - R$ {variacao.preco.toFixed(2).replace('.', ',')}
-                      </button>
-                    ))}
-                  </div>
-                  {!selectedVariacao && (
-                    <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
-                      <span className="material-symbols-outlined text-base">warning</span>
-                      Selecione um peso para adicionar ao carrinho
-                    </p>
+                  {(product.variacoes && product.variacoes.length > 1) || (product.gramas && (!product.variacoes || product.variacoes.length === 0)) ? (
+                    <>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Selecione o peso <span className="text-red-500">*</span>
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {(
+                          product.variacoes && product.variacoes.length > 0
+                            ? product.variacoes
+                            : product.gramas
+                              ? [{ gramas: product.gramas, preco: product.price }]
+                              : []
+                        ).map((variacao, index) => (
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => setSelectedVariacao(variacao)}
+                            className={`px-4 py-2 rounded-full border-2 font-medium transition-all ${
+                              selectedVariacao?.gramas === variacao.gramas
+                                ? 'border-neon bg-neon text-[#132210]'
+                                : 'border-gray-300 bg-white text-gray-700 hover:border-neon'
+                            }`}
+                          >
+                            {variacao.gramas} - R$ {variacao.preco.toFixed(2).replace('.', ',')}
+                          </button>
+                        ))}
+                      </div>
+                      {!selectedVariacao && (
+                        <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-base">warning</span>
+                          Selecione um peso para adicionar ao carrinho
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <span className="material-symbols-outlined text-base">scale</span>
+                      <span>Peso: {product.variacoes?.[0]?.gramas || product.gramas}</span>
+                    </div>
                   )}
                 </div>
               )}
 
               {product && (
                 <p className="text-4xl font-bold text-gray-900">
-                  R$ {(selectedVariacao ? selectedVariacao.preco : product.price).toFixed(2).replace('.', ',')}
+                  R$ {((selectedVariacao && selectedVariacao.preco) || 
+                        (product.variacoes && product.variacoes.length === 1 && product.variacoes[0].preco) || 
+                        product.price).toFixed(2).replace('.', ',')}
                 </p>
               )}
 

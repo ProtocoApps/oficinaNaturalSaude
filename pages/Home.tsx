@@ -152,8 +152,11 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
   }, []);
 
   const handleAddToCart = (product: UIProduct) => {
-    // Se tem variações, redireciona para a página do produto
-    if ((product.variacoes && product.variacoes.length > 0) || !!product.gramas) {
+    // Se tem múltiplas opções de gramas, redireciona para a página do produto
+    const hasMultipleOptions = (product.variacoes && product.variacoes.length > 1) || 
+                              (product.gramas && product.variacoes && product.variacoes.length === 0);
+    
+    if (hasMultipleOptions) {
       navigate(`/product/${product.id}`);
       return;
     }
