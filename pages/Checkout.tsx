@@ -95,102 +95,57 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
     return Math.round(n);
   };
 
+  // Função para calcular frete baseado nos itens
+  const calcularFreteDosItens = async () => {
+    if (items.length === 0 || tipoEntrega === 'retirada') {
+      setShippingQuotes(null);
+      return;
+    }
+
+    console.log('CALCULANDO FRETE - Items:', items.length);
+    
+    // Calcular peso total
+    let pesoTotalGramas = 0;
+    
+    for (const item of items) {
+      // Extrair peso do nome do produto (ex: "Chá - 100g")
+      const match = item.name.match(/(\d+)\s*(g|kg)/i);
+      let pesoItem = 100; // padrão
+      
+      if (match) {
+        const valor = parseInt(match[1]);
+        const unidade = match[2].toLowerCase();
+        pesoItem = unidade === 'kg' ? valor * 1000 : valor;
+      }
+      
+      console.log(`Item: ${item.name}, Peso: ${pesoItem}g, Qtd: ${item.qty}`);
+      pesoTotalGramas += (pesoItem * item.qty);
+    }
+    
+    console.log('PESO TOTAL:', pesoTotalGramas, 'gramas');
+    
+    // Calcular frete
+    const opcoes = opcoesFrete(pesoTotalGramas);
+    
+    setShippingQuotes({
+      pac: {
+        coProduto: 'pac',
+        valor: opcoes.pac.preco,
+        prazoDias: opcoes.pac.prazo,
+      },
+      sedex: {
+        coProduto: 'sedex',
+        valor: opcoes.sedex.preco,
+        prazoDias: opcoes.sedex.prazo,
+      },
+    });
+    
+    console.log('FRETE CALCULADO:', opcoes);
+  };
+
   useEffect(() => {
-    console.log('useEffect do frete acionado! Items:', items.length);
-    const run = async () => {
-      const cepDestino = cep.replace(/\D/g, '');
-      if (tipoEntrega === 'retirada') {
-        setShippingQuotes(null);
-        setFreteError('');
-        return;
-      }
-      if (cepDestino.length !== 8) {
-        setShippingQuotes(null);
-        setFreteError('');
-        return;
-      }
-
-      // Só calcula frete se tiver itens e CEP válido
-      if (items.length === 0) {
-        setShippingQuotes(null);
-        setFreteError('');
-        return;
-      }
-
-      setLoadingFrete(true);
-      setFreteError('');
-
-      try {
-        // Calcular o peso total usando o campo gramas do banco de dados
-        const ids = items.map((i) => i.id.split('-')[0]); // Remove sufixo de variação se existir
-        
-        let pesoTotalGramas = 0;
-        
-        if (ids.length > 0) {
-          const { data, error } = await supabase
-            .from('produtos')
-            .select('id, gramas')
-            .in('id', ids);
-
-          if (!error && data) {
-            console.log('Dados dos produtos do banco:', data);
-            const byId = new Map<string, any>(data.map((p: any) => [p.id, p]));
-            
-            for (const item of items) {
-              const produtoId = item.id.split('-')[0]; // ID base sem variação
-              const produto = byId.get(produtoId);
-              
-              console.log('Item do carrinho:', item);
-              console.log('Produto correspondente:', produto);
-              
-              if (produto?.gramas) {
-                // Se tem gramas no banco, usa esse valor
-                const pesoItem = parseInt(produto.gramas) || 100;
-                console.log(`Peso do produto: ${pesoItem}g, Quantidade: ${item.qty}`);
-                pesoTotalGramas += (pesoItem * item.qty);
-                console.log(`Peso adicionado: ${pesoItem * item.qty}g, Total acumulado: ${pesoTotalGramas}g`);
-              } else {
-                // Se não tem gramas, usa 100g como padrão
-                console.log('Produto sem gramas, usando 100g padrão');
-                pesoTotalGramas += (100 * item.qty);
-                console.log(`Peso adicionado: ${100 * item.qty}g, Total acumulado: ${pesoTotalGramas}g`);
-              }
-            }
-          } else {
-            // Se erro na query, usa 100g padrão
-            console.log('Erro na query ou sem dados, usando 100g padrão');
-            pesoTotalGramas = items.reduce((total, item) => total + (100 * item.qty), 0);
-          }
-        }
-
-        // Usar cálculo local em vez da API dos Correios
-        const opcoes = opcoesFrete(pesoTotalGramas);
-        
-        setShippingQuotes({
-          pac: {
-            coProduto: 'pac',
-            valor: opcoes.pac.preco,
-            prazoDias: opcoes.pac.prazo,
-          },
-          sedex: {
-            coProduto: 'sedex',
-            valor: opcoes.sedex.preco,
-            prazoDias: opcoes.sedex.prazo,
-          },
-        });
-
-        console.log(`Peso total: ${formatarPeso(pesoTotalGramas)}`);
-        console.log('Opções de frete calculadas:', opcoes);
-      } catch (e: any) {
-        setShippingQuotes(null);
-        setFreteError(e?.message || 'Erro ao calcular frete.');
-      } finally {
-        setLoadingFrete(false);
-      }
-    };
-
-    run();
-  }, [cep, tipoEntrega, items]);
+    calcularFreteDosItens();
+  }, [items, tipoEntrega]);
 
   // Validação
   const canContinue = customerName.trim() !== '' && 
