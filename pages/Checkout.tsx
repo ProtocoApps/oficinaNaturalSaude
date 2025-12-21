@@ -436,6 +436,26 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
               </div>
             </div>
 
+            {/* Botão Atualizar Frete */}
+            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">Atualizar Cálculo de Frete</h3>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Clique para recalcular o frete com base nos produtos atuais
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={calcularFreteDosItens}
+                  className="px-6 py-3 bg-neon text-white rounded-lg hover:bg-neon/90 transition-colors font-medium flex items-center gap-2"
+                >
+                  <span className="material-symbols-outlined">refresh</span>
+                  Atualizar Frete
+                </button>
+              </div>
+            </div>
+
             {/* Endereço de Entrega */}
             {(tipoEntrega === 'sedex' || tipoEntrega === 'pac') && (
               <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
