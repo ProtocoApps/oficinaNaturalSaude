@@ -10,21 +10,21 @@ interface FaixaPeso {
   precoSedex: number;
 }
 
-// Tabela de preços por faixa de peso (em gramas)
+// Tabela de preços por faixa de peso (em gramas) - baseada nas imagens dos Correios
 const TABELA_FRETE: FaixaPeso[] = [
-  { min: 0, max: 300, precoPac: 19.99, precoSedex: 24.99 },    // Até 300g
-  { min: 301, max: 400, precoPac: 20.49, precoSedex: 26.49 },  // 301-400g
-  { min: 401, max: 500, precoPac: 21.99, precoSedex: 28.99 },  // 401-500g
-  { min: 501, max: 600, precoPac: 23.49, precoSedex: 30.49 },  // 501-600g
-  { min: 601, max: 700, precoPac: 24.99, precoSedex: 32.99 },  // 601-700g
-  { min: 701, max: 800, precoPac: 26.49, precoSedex: 34.99 },  // 701-800g
-  { min: 801, max: 900, precoPac: 27.99, precoSedex: 36.99 },  // 801-900g
-  { min: 901, max: 1000, precoPac: 29.49, precoSedex: 38.99 }, // 901-1000g
-  { min: 1001, max: 1100, precoPac: 30.99, precoSedex: 40.99 }, // 1001-1100g
-  { min: 1101, max: 1200, precoPac: 32.49, precoSedex: 42.99 }, // 1101-1200g
-  { min: 1201, max: 1300, precoPac: 33.99, precoSedex: 44.99 }, // 1201-1300g
-  { min: 1301, max: 1400, precoPac: 35.49, precoSedex: 46.99 }, // 1301-1400g
-  { min: 1401, max: 1500, precoPac: 36.99, precoSedex: 48.99 }, // 1401-1500g
+  { min: 0, max: 300, precoPac: 11.00, precoSedex: 17.52 },    // Até 300g
+  { min: 301, max: 400, precoPac: 11.50, precoSedex: 18.02 },  // 301-400g
+  { min: 401, max: 500, precoPac: 12.00, precoSedex: 18.52 },  // 401-500g
+  { min: 501, max: 600, precoPac: 12.50, precoSedex: 19.02 },  // 501-600g
+  { min: 601, max: 700, precoPac: 13.00, precoSedex: 19.52 },  // 601-700g
+  { min: 701, max: 800, precoPac: 13.50, precoSedex: 20.02 },  // 701-800g
+  { min: 801, max: 900, precoPac: 14.00, precoSedex: 20.52 },  // 801-900g
+  { min: 901, max: 1000, precoPac: 14.50, precoSedex: 21.02 }, // 901-1000g
+  { min: 1001, max: 1100, precoPac: 15.00, precoSedex: 21.52 }, // 1001-1100g
+  { min: 1101, max: 1200, precoPac: 15.50, precoSedex: 22.02 }, // 1101-1200g
+  { min: 1201, max: 1300, precoPac: 16.00, precoSedex: 22.52 }, // 1201-1300g
+  { min: 1301, max: 1400, precoPac: 16.50, precoSedex: 23.02 }, // 1301-1400g
+  { min: 1401, max: 1500, precoPac: 17.00, precoSedex: 23.52 }, // 1401-1500g
 ];
 
 // Função para extrair peso em gramas do nome do produto
