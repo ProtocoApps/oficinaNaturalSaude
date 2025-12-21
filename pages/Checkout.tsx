@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import type { CartItem } from '../App';
+import { calcularFreteCarrinho, opcoesFrete, formatarPeso } from '../utils/freteCalculator';
 
 const WHATSAPP_ADMIN = '5547992853033';
 
@@ -112,51 +113,38 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
       setFreteError('');
 
       try {
-        const ids = items.map((i) => i.id);
-        let pesoTotalGramas = 0;
-
-        if (ids.length > 0) {
-          const { data, error } = await supabase
-            .from('produtos')
-            .select('id, gramas')
-            .in('id', ids);
-
-          if (!error && data) {
-            const byId = new Map<string, any>(data.map((p: any) => [p.id, p]));
-            for (const item of items) {
-              const p = byId.get(item.id);
-              const grams = parseWeightToGrams(p?.gramas);
-              pesoTotalGramas += (grams ?? 100) * item.qty;
-            }
-          } else {
-            for (const item of items) pesoTotalGramas += 100 * item.qty;
+        // Calcular o peso total usando o novo sistema
+        const pesoTotalGramas = items.reduce((total, item) => {
+          // Extrair peso do nome do produto (ex: "Chá de Camomila - 100g")
+          const match = item.name.match(/(\d+)\s*(g|kg)/i);
+          if (match) {
+            const valor = parseInt(match[1]);
+            const unidade = match[2].toLowerCase();
+            const pesoItem = unidade === 'kg' ? valor * 1000 : valor;
+            return total + (pesoItem * item.qty);
           }
-        }
+          // Peso padrão se não encontrar no nome
+          return total + (100 * item.qty);
+        }, 0);
 
-        const resp = await fetch('/.netlify/functions/correios-frete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            cepDestino,
-            pesoGramas: pesoTotalGramas,
-            comprimento: 20,
-            largura: 20,
-            altura: 20,
-          }),
-        });
-
-        if (!resp.ok) {
-          const t = await resp.text();
-          setShippingQuotes(null);
-          setFreteError(t || 'Erro ao calcular frete.');
-          return;
-        }
-
-        const json = await resp.json();
+        // Usar cálculo local em vez da API dos Correios
+        const opcoes = opcoesFrete(pesoTotalGramas);
+        
         setShippingQuotes({
-          pac: json?.pac || undefined,
-          sedex: json?.sedex || undefined,
+          pac: {
+            coProduto: 'pac',
+            valor: opcoes.pac.preco,
+            prazoDias: opcoes.pac.prazo,
+          },
+          sedex: {
+            coProduto: 'sedex',
+            valor: opcoes.sedex.preco,
+            prazoDias: opcoes.sedex.prazo,
+          },
         });
+
+        console.log(`Peso total: ${formatarPeso(pesoTotalGramas)}`);
+        console.log('Opções de frete calculadas:', opcoes);
       } catch (e: any) {
         setShippingQuotes(null);
         setFreteError(e?.message || 'Erro ao calcular frete.');
@@ -606,6 +594,21 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
               </div>
 
               <div className="border-t border-gray-200 pt-4 space-y-3">
+                {/* Peso Total */}
+                <div className="flex justify-between text-gray-600 text-sm">
+                  <span>Peso Total</span>
+                  <span>{formatarPeso(items.reduce((total, item) => {
+                    const match = item.name.match(/(\d+)\s*(g|kg)/i);
+                    if (match) {
+                      const valor = parseInt(match[1]);
+                      const unidade = match[2].toLowerCase();
+                      const pesoItem = unidade === 'kg' ? valor * 1000 : valor;
+                      return total + (pesoItem * item.qty);
+                    }
+                    return total + (100 * item.qty);
+                  }, 0))}</span>
+                </div>
+                
                 <div className="flex justify-between text-gray-700">
                   <span>Subtotal</span>
                   <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
