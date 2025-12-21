@@ -102,7 +102,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
 
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status');
+          .select('id, produto_id, produto_nome, preco, status, imagens, categoria');
 
         if (error) {
           console.error('Erro ao carregar produtos do Supabase:', error);
@@ -114,8 +114,10 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
           .filter((p) => p.produto_nome && p.preco != null)
           .map((p) => {
             const produtoId = (p.produto_id || '').toString();
-            const image = imageByProdutoId[produtoId] ?? imageByProdutoId['1'];
-            const category = categoryByProdutoId[produtoId] ?? 'Outros';
+            const image = (p.imagens && p.imagens.length > 0) 
+              ? p.imagens[0] 
+              : (imageByProdutoId[produtoId] ?? imageByProdutoId['1']);
+            const category = p.categoria || categoryByProdutoId[produtoId] || 'Outros';
             const brand = brandByProdutoId[produtoId] ?? 'Naturalis';
             return {
               id: p.id,

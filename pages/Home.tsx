@@ -9,6 +9,7 @@ type DbProduto = {
   produto_nome: string | null;
   preco: number | null;
   status: string | null;
+  imagens?: string[] | null;
 };
 
 type UIProduct = {
@@ -97,7 +98,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
       // ... carregar produtos (código existente mantido abaixo)
       const { data, error } = await supabase
         .from('produtos')
-        .select('id, produto_id, produto_nome, preco, status')
+        .select('id, produto_id, produto_nome, preco, status, imagens')
         .limit(8);
 
       if (error) {
@@ -109,7 +110,9 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
         .filter((p) => p.produto_nome && p.preco != null)
         .map((p) => {
           const produtoId = (p.produto_id || '').toString();
-          const image = imageByProdutoId[produtoId] ?? imageByProdutoId['1'];
+          const image = (p.imagens && p.imagens.length > 0) 
+            ? p.imagens[0] 
+            : (imageByProdutoId[produtoId] ?? imageByProdutoId['1']);
           return {
             id: p.id,
             name: p.produto_nome as string,
