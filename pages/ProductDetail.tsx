@@ -3,12 +3,18 @@ import { Link, useParams, useLocation } from 'react-router-dom';
 import { supabase } from '../supabaseClient';
 import type { CartItem } from '../App';
 
+type Variacao = {
+  gramas: string;
+  preco: number;
+};
+
 type UIProduct = {
   id: string;
   produtoId: string;
   name: string;
   price: number;
   image: string;
+  variacoes?: Variacao[] | null;
 };
 
 type Review = {
@@ -46,6 +52,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
   const [added, setAdded] = useState(false);
+  const [selectedVariacao, setSelectedVariacao] = useState<Variacao | null>(null);
 
   const [user, setUser] = useState<any>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -80,6 +87,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
     
     setQuantity(1);
     setSelectedImage(0);
+    setSelectedVariacao(null);
 
     const load = async () => {
       if (!id) return;
@@ -88,7 +96,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
       if (!hasInitialData) {
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status')
+          .select('id, produto_id, produto_nome, preco, status, imagens, variacoes')
           .eq('id', id)
           .single();
 
@@ -100,13 +108,16 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
 
         if (data) {
           const produtoId = (data.produto_id || '').toString();
-          const image = imageByProdutoId[produtoId] ?? imageByProdutoId['1'];
+          const image = (data.imagens && data.imagens.length > 0) 
+            ? data.imagens[0] 
+            : (imageByProdutoId[produtoId] ?? imageByProdutoId['1']);
           setProduct({
             id: data.id,
             produtoId,
             name: data.produto_nome,
             price: data.preco,
             image,
+            variacoes: data.variacoes,
           });
         }
       }
@@ -261,10 +272,20 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
 
   const handleAddToCart = () => {
     if (!product) return;
+    
+    // Se tem variações, precisa selecionar uma
+    if (product.variacoes && product.variacoes.length > 0 && !selectedVariacao) {
+      alert('Por favor, selecione o peso do produto antes de adicionar ao carrinho.');
+      return;
+    }
+    
+    const finalPrice = selectedVariacao ? selectedVariacao.preco : product.price;
+    const finalName = selectedVariacao ? `${product.name} - ${selectedVariacao.gramas}` : product.name;
+    
     const item: CartItem = {
-      id: product.id,
-      name: product.name,
-      price: product.price,
+      id: selectedVariacao ? `${product.id}-${selectedVariacao.gramas}` : product.id,
+      name: finalName,
+      price: finalPrice,
       image: product.image,
       qty: quantity,
     };
@@ -436,9 +457,39 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
                 </p>
               )}
 
+              {product && product.variacoes && product.variacoes.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Selecione o peso <span className="text-red-500">*</span>
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {product.variacoes.map((variacao, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => setSelectedVariacao(variacao)}
+                        className={`px-4 py-2 rounded-full border-2 font-medium transition-all ${
+                          selectedVariacao?.gramas === variacao.gramas
+                            ? 'border-neon bg-neon text-[#132210]'
+                            : 'border-gray-300 bg-white text-gray-700 hover:border-neon'
+                        }`}
+                      >
+                        {variacao.gramas} - R$ {variacao.preco.toFixed(2).replace('.', ',')}
+                      </button>
+                    ))}
+                  </div>
+                  {!selectedVariacao && (
+                    <p className="text-sm text-amber-600 mt-2 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-base">warning</span>
+                      Selecione um peso para adicionar ao carrinho
+                    </p>
+                  )}
+                </div>
+              )}
+
               {product && (
                 <p className="text-4xl font-bold text-gray-900">
-                  R$ {product.price.toFixed(2).replace('.', ',')}
+                  R$ {(selectedVariacao ? selectedVariacao.preco : product.price).toFixed(2).replace('.', ',')}
                 </p>
               )}
 
