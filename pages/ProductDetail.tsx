@@ -91,10 +91,12 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
     setSelectedVariacao(null);
 
     const load = async () => {
-      if (!id) return;
+      try {
+        if (!id) return;
 
-      // Se NÃO temos dados iniciais, buscamos do banco
-      if (!hasInitialData) {
+        // Se NÃO temos dados iniciais, buscamos do banco
+        if (!hasInitialData) {
+        console.log('Carregando produto do Supabase, ID:', id);
         const { data, error } = await supabase
           .from('produtos')
           .select('id, produto_id, produto_nome, preco, status, imagens, variacoes, gramas')
@@ -107,12 +109,15 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
           return;
         }
 
+        console.log('Dados do produto recebidos:', data);
+        
         if (data) {
           const produtoId = (data.produto_id || '').toString();
           const image = (data.imagens && data.imagens.length > 0) 
             ? data.imagens[0] 
             : (imageByProdutoId[produtoId] ?? imageByProdutoId['1']);
-          setProduct({
+          
+          const productData = {
             id: data.id,
             produtoId,
             name: data.produto_nome,
@@ -120,7 +125,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
             image,
             variacoes: data.variacoes,
             gramas: (data as any).gramas,
-          });
+          };
+          
+          console.log('Dados do produto processados:', productData);
+          setProduct(productData);
         }
       }
 
@@ -150,6 +158,10 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
       
       // Garante que loading termina
       setLoading(false);
+      } catch (error) {
+        console.error('Erro geral ao carregar produto:', error);
+        setLoading(false);
+      }
     };
 
     load();
