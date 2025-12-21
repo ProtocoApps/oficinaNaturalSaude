@@ -183,7 +183,7 @@ const AdminProdutos: React.FC = () => {
       preco,
       status: formData.status,
       categoria: formData.categoria,
-      gramas: formData.gramas,
+      gramas: formData.variacoes.length > 0 ? formData.variacoes[0].gramas : formData.gramas,
       imagens: uploadedImageUrls,
       variacoes: formData.variacoes.length > 0 ? formData.variacoes : null,
     };
