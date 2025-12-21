@@ -147,6 +147,25 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
     calcularFreteDosItens();
   }, [items, tipoEntrega]);
 
+  // Listener para eventos de atualização do carrinho
+  useEffect(() => {
+    const handleCartUpdate = () => {
+      console.log('Evento de atualização do carrinho recebido!');
+      calcularFreteDosItens();
+    };
+
+    const checkoutElement = document.querySelector('[data-checkout-refresh]');
+    if (checkoutElement) {
+      checkoutElement.addEventListener('cartUpdated', handleCartUpdate);
+    }
+
+    return () => {
+      if (checkoutElement) {
+        checkoutElement.removeEventListener('cartUpdated', handleCartUpdate);
+      }
+    };
+  }, []);
+
   // Validação
   const canContinue = customerName.trim() !== '' && 
                       customerWhatsapp.trim() !== '' &&
@@ -326,7 +345,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   };
 
   return (
-    <div className="bg-background-light min-h-screen pb-20">
+    <div className="bg-background-light min-h-screen pb-20" data-checkout-refresh>
       <div className="container mx-auto px-4 lg:px-8 py-10 max-w-[1200px]">
         <h1 className="text-4xl font-bold text-center mb-12 text-gray-900">Finalizar Pedido</h1>
         
