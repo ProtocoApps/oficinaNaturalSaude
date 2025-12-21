@@ -2,6 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { supabase } from '../../supabaseClient';
 
+type Variacao = {
+  gramas: string;
+  preco: number;
+};
+
 type Produto = {
   id: string;
   produto_id: string;
@@ -11,6 +16,7 @@ type Produto = {
   categoria?: string;
   gramas?: string;
   imagens?: string[];
+  variacoes?: Variacao[];
 };
 
 const imageByProdutoId: Record<string, string> = {
@@ -21,7 +27,7 @@ const imageByProdutoId: Record<string, string> = {
   '5': 'https://lh3.googleusercontent.com/aida-public/AB6AXuC5Q0DyOA_ZKfVSjXgO6wSSuoVJZldfRGuRtfRC1G9geNNjfgmnkEGAliv8T9ob540g-rOICXKGZvCMjR-Gm-PcFLOl--9JZyYFdL-Hj-nanBzP2KSQupoS4mbKH8YtjHXYeDeQsdp8OCG5oavrNUlMm9ytPTB4935pgPVjcwva8wzEEeog5CqiDwu_8V91Hch3NjqRJ0YH9bMzJiH7xi58lBCipIVogkQu1HD4_EEiDxm46p9HSlcXxmfbfUFRyGU4crxguGE5uE6m',
 };
 
-const GRAMAS_OPTIONS = ['50g', '100g', '200g', '500g', '1kg'];
+const GRAMAS_OPTIONS = ['50g', '100g', '200g', '250g', '500g', '1kg'];
 
 const AdminProdutos: React.FC = () => {
   const { searchTerm } = useOutletContext<{ searchTerm: string }>();
@@ -39,6 +45,7 @@ const AdminProdutos: React.FC = () => {
     gramas: string;
     imagens: string[];
     newImages: File[];
+    variacoes: Variacao[];
   }>({
     produto_nome: '',
     preco: '',
@@ -47,6 +54,7 @@ const AdminProdutos: React.FC = () => {
     gramas: '',
     imagens: [],
     newImages: [],
+    variacoes: [],
   });
 
   const loadProdutos = async () => {
@@ -91,6 +99,7 @@ const AdminProdutos: React.FC = () => {
         gramas: produto.gramas || '',
         imagens: produto.imagens || [],
         newImages: [],
+        variacoes: produto.variacoes || [],
       });
     } else {
       setEditingProduto(null);
@@ -102,6 +111,7 @@ const AdminProdutos: React.FC = () => {
         gramas: '',
         imagens: [],
         newImages: [],
+        variacoes: [],
       });
     }
     setShowModal(true);
@@ -175,6 +185,7 @@ const AdminProdutos: React.FC = () => {
       categoria: formData.categoria,
       gramas: formData.gramas,
       imagens: uploadedImageUrls,
+      variacoes: formData.variacoes.length > 0 ? formData.variacoes : null,
     };
 
     if (editingProduto) {
@@ -358,31 +369,98 @@ const AdminProdutos: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Peso / Quantidade</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Variações de Peso e Preço</label>
+                  <p className="text-xs text-gray-500 mb-3">Adicione diferentes pesos com seus respectivos preços</p>
+                  
                   <div className="space-y-3">
-                    <input
-                      type="text"
-                      value={formData.gramas}
-                      onChange={(e) => setFormData({ ...formData, gramas: e.target.value })}
-                      placeholder="Ex: 100g, 500ml..."
-                      className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon"
-                    />
-                    <div className="flex flex-wrap gap-2">
-                      {GRAMAS_OPTIONS.map((option) => (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, gramas: option })}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-full transition-colors ${
-                            formData.gramas === option
-                              ? 'bg-neon text-[#132210]'
-                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                          }`}
-                        >
-                          {option}
-                        </button>
-                      ))}
+                    <div className="flex gap-2">
+                      <select
+                        id="nova-variacao-gramas"
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon text-sm"
+                      >
+                        <option value="">Selecione o peso</option>
+                        {GRAMAS_OPTIONS.map((option) => (
+                          <option key={option} value={option}>{option}</option>
+                        ))}
+                      </select>
+                      <input
+                        id="nova-variacao-preco"
+                        type="text"
+                        placeholder="Preço (R$)"
+                        className="w-28 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon text-sm"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const gramasSelect = document.getElementById('nova-variacao-gramas') as HTMLSelectElement;
+                          const precoInput = document.getElementById('nova-variacao-preco') as HTMLInputElement;
+                          const gramas = gramasSelect.value;
+                          const preco = parseFloat(precoInput.value.replace(',', '.'));
+                          
+                          if (!gramas || isNaN(preco) || preco <= 0) {
+                            alert('Selecione o peso e digite um preço válido');
+                            return;
+                          }
+                          
+                          const jaExiste = formData.variacoes.some(v => v.gramas === gramas);
+                          if (jaExiste) {
+                            alert('Já existe uma variação com esse peso');
+                            return;
+                          }
+                          
+                          setFormData(prev => ({
+                            ...prev,
+                            variacoes: [...prev.variacoes, { gramas, preco }]
+                          }));
+                          
+                          gramasSelect.value = '';
+                          precoInput.value = '';
+                        }}
+                        className="px-4 py-2 bg-neon text-[#132210] font-medium rounded-lg hover:brightness-110 text-sm"
+                      >
+                        Adicionar
+                      </button>
                     </div>
+                    
+                    {formData.variacoes.length > 0 && (
+                      <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Peso</th>
+                              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Preço</th>
+                              <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Ação</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-200">
+                            {formData.variacoes.map((variacao, index) => (
+                              <tr key={index}>
+                                <td className="px-3 py-2 font-medium">{variacao.gramas}</td>
+                                <td className="px-3 py-2">R$ {variacao.preco.toFixed(2).replace('.', ',')}</td>
+                                <td className="px-3 py-2 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData(prev => ({
+                                        ...prev,
+                                        variacoes: prev.variacoes.filter((_, i) => i !== index)
+                                      }));
+                                    }}
+                                    className="text-red-500 hover:text-red-700"
+                                  >
+                                    <span className="material-symbols-outlined text-base">delete</span>
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                    
+                    {formData.variacoes.length === 0 && (
+                      <p className="text-xs text-gray-400 text-center py-2">Nenhuma variação adicionada</p>
+                    )}
                   </div>
                 </div>
 
