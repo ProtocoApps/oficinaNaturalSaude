@@ -24,9 +24,23 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
   const [selectedFrete, setSelectedFrete] = useState<string>('retirada');
   const [loadingFrete, setLoadingFrete] = useState(false);
   const [cidadeDestino, setCidadeDestino] = useState('');
+  const [needsFreteUpdate, setNeedsFreteUpdate] = useState(false);
 
-  // Peso médio por item (em kg) - pode ser ajustado depois
-  const pesoTotal = items.reduce((sum, item) => sum + (0.3 * item.qty), 0); // 300g por item
+  // Calcular peso real baseado no nome do produto (ex: "Chá - 100g", "Shoyu - 500ml")
+  const calcularPesoItem = (name: string): number => {
+    const match = name.match(/(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b/i);
+    if (match) {
+      const valor = parseFloat(match[1].replace(',', '.'));
+      const unidade = match[2].toLowerCase();
+      if (unidade === 'kg') return valor; // já em kg
+      if (unidade === 'l') return valor; // 1L ≈ 1kg
+      if (unidade === 'ml') return valor / 1000; // ml para kg
+      return valor / 1000; // g para kg
+    }
+    return 0.1; // padrão 100g se não encontrar
+  };
+  
+  const pesoTotal = items.reduce((sum, item) => sum + (calcularPesoItem(item.name) * item.qty), 0);
 
   const calcularFrete = async () => {
     if (cep.replace(/\D/g, '').length !== 8) {
@@ -75,6 +89,7 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
         { tipo: 'pac', nome: 'PAC', valor: pacValor, prazo: prazoPac },
       ]);
       setSelectedFrete('retirada');
+      setNeedsFreteUpdate(false);
     } catch (error) {
       console.error('Erro ao calcular frete:', error);
       // Fallback com valores padrão
@@ -85,6 +100,16 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
       ]);
     } finally {
       setLoadingFrete(false);
+      if (freteOptions.length === 0) {
+        setNeedsFreteUpdate(false);
+      }
+    }
+  };
+
+  const handleQuantityChange = (id: string, delta: number) => {
+    updateQuantity(id, delta);
+    if (freteOptions.length > 0) {
+      setNeedsFreteUpdate(true);
     }
   };
 
@@ -123,7 +148,7 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
                        <div className="flex items-center border border-gray-200 rounded-full h-9">
                           <button
                             type="button"
-                            onClick={() => updateQuantity(item.id, -1)}
+                            onClick={() => handleQuantityChange(item.id, -1)}
                             className="w-9 h-full flex items-center justify-center hover:bg-neon/10 rounded-l-full text-neon hover:text-neon"
                           >
                             -
@@ -131,7 +156,7 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
                           <input type="text" value={item.qty} readOnly className="w-10 text-center border-none bg-transparent p-0 text-sm font-medium text-gray-900" />
                           <button
                             type="button"
-                            onClick={() => updateQuantity(item.id, 1)}
+                            onClick={() => handleQuantityChange(item.id, 1)}
                             className="w-9 h-full flex items-center justify-center hover:bg-neon/10 rounded-r-full text-neon hover:text-neon"
                           >
                             +
@@ -191,6 +216,20 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
                     Entrega para <span className="font-medium text-gray-700">{cidadeDestino}</span>
                   </p>
                 )}
+                {freteOptions.length > 0 && needsFreteUpdate && (
+                  <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg p-4 flex flex-col gap-3">
+                    <p className="text-sm text-amber-800 font-medium">
+                      A quantidade mudou. Clique para atualizar os valores de PAC/SEDEX.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={calcularFrete}
+                      className="px-4 py-2 bg-amber-500 text-white font-semibold rounded-lg hover:bg-amber-600 transition-colors text-sm w-fit"
+                    >
+                      Atualizar valores de frete
+                    </button>
+                  </div>
+                )}
 
                 {freteOptions.length > 0 && (
                   <div className="space-y-2 mt-4">
@@ -245,7 +284,19 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
                    <span className="text-2xl font-black text-neon">R$ {total.toFixed(2).replace('.', ',')}</span>
                 </div>
              </div>
-             <Link to="/checkout" className="block w-full py-4 bg-neon text-[#132210] text-center font-bold rounded-full hover:shadow-lg hover:shadow-neon/30 transition-all hover:-translate-y-1">
+             <Link 
+               to="/checkout" 
+               onClick={() => {
+                 // Salvar CEP e frete selecionado para o checkout
+                 if (cep) {
+                   localStorage.setItem('checkout_cep', cep.replace(/\D/g, ''));
+                 }
+                 if (selectedFrete) {
+                   localStorage.setItem('checkout_frete_tipo', selectedFrete);
+                 }
+               }}
+               className="block w-full py-4 bg-neon text-[#132210] text-center font-bold rounded-full hover:shadow-lg hover:shadow-neon/30 transition-all hover:-translate-y-1"
+             >
                 Finalizar Compra
              </Link>
              <div className="mt-6 flex items-center justify-center gap-2 text-xs text-gray-400 uppercase tracking-wide font-bold">

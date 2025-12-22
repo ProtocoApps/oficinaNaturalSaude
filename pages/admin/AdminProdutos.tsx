@@ -15,6 +15,7 @@ type Produto = {
   status: string;
   categoria?: string;
   gramas?: string;
+  descricao?: string;
   imagens?: string[];
   variacoes?: Variacao[];
 };
@@ -43,6 +44,7 @@ const AdminProdutos: React.FC = () => {
     status: string;
     categoria: string;
     gramas: string;
+    descricao: string;
     imagens: string[];
     newImages: File[];
     variacoes: Variacao[];
@@ -52,10 +54,13 @@ const AdminProdutos: React.FC = () => {
     status: 'ativo',
     categoria: 'Chás',
     gramas: '',
+    descricao: '',
     imagens: [],
     newImages: [],
     variacoes: [],
   });
+  const [novaVariacaoGramas, setNovaVariacaoGramas] = useState('');
+  const [novaVariacaoPreco, setNovaVariacaoPreco] = useState('');
 
   const loadProdutos = async () => {
     const { data, error } = await supabase
@@ -97,6 +102,7 @@ const AdminProdutos: React.FC = () => {
         status: produto.status || 'ativo',
         categoria: produto.categoria || 'Chás',
         gramas: produto.gramas || '',
+        descricao: produto.descricao || '',
         imagens: produto.imagens || [],
         newImages: [],
         variacoes: produto.variacoes || [],
@@ -109,10 +115,13 @@ const AdminProdutos: React.FC = () => {
         status: 'ativo',
         categoria: 'Chás',
         gramas: '',
+        descricao: '',
         imagens: [],
         newImages: [],
         variacoes: [],
       });
+      setNovaVariacaoGramas('');
+      setNovaVariacaoPreco('');
     }
     setShowModal(true);
   };
@@ -183,6 +192,7 @@ const AdminProdutos: React.FC = () => {
       preco,
       status: formData.status,
       categoria: formData.categoria,
+      descricao: formData.descricao,
       gramas: formData.variacoes.length > 0 ? formData.variacoes[0].gramas : formData.gramas,
       imagens: uploadedImageUrls,
       variacoes: formData.variacoes.length > 0 ? formData.variacoes : null,
@@ -196,8 +206,8 @@ const AdminProdutos: React.FC = () => {
         .eq('id', editingProduto.id);
 
       if (error) {
-        alert('Erro ao atualizar produto');
-        console.error(error);
+        alert(`Erro ao atualizar produto:\n${error.message}`);
+        console.error('Erro Supabase:', error);
         setUploading(false);
         return;
       }
@@ -369,40 +379,72 @@ const AdminProdutos: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Variações de Peso e Preço</label>
-                  <p className="text-xs text-gray-500 mb-3">Adicione diferentes pesos com seus respectivos preços</p>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Descrição do Produto</label>
+                  <textarea
+                    value={formData.descricao}
+                    onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
+                    placeholder="Descreva os benefícios, composição ou modo de uso..."
+                    rows={3}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Peso do Produto</label>
+                  <p className="text-xs text-gray-500 mb-3">Digite o peso ou escolha uma opção. Você pode digitar qualquer valor (ex: 80g, 150g, 1.5kg)</p>
+                  <input
+                    type="text"
+                    list="gramas-options"
+                    value={formData.gramas}
+                    onChange={(e) => setFormData({ ...formData, gramas: e.target.value })}
+                    placeholder="Ex: 100g, 250g, 1kg..."
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon"
+                  />
+                  <datalist id="gramas-options">
+                    {GRAMAS_OPTIONS.map((option) => (
+                      <option key={option} value={option} />
+                    ))}
+                  </datalist>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Variações de Peso e Preço (opcional)</label>
+                  <p className="text-xs text-gray-500 mb-3">Se o produto tiver diferentes pesos com preços diferentes, adicione aqui. Caso contrário, use apenas o campo acima.</p>
                   
                   <div className="space-y-3">
                     <div className="flex gap-2">
-                      <select
-                        id="nova-variacao-gramas"
-                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon text-sm"
-                      >
-                        <option value="">Selecione o peso</option>
-                        {GRAMAS_OPTIONS.map((option) => (
-                          <option key={option} value={option}>{option}</option>
-                        ))}
-                      </select>
                       <input
-                        id="nova-variacao-preco"
                         type="text"
+                        list="gramas-options-variacao"
+                        value={novaVariacaoGramas}
+                        onChange={(e) => setNovaVariacaoGramas(e.target.value)}
+                        placeholder="Peso (ex: 50g, 200g)"
+                        className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon text-sm"
+                      />
+                      <datalist id="gramas-options-variacao">
+                        {GRAMAS_OPTIONS.map((option) => (
+                          <option key={option} value={option} />
+                        ))}
+                      </datalist>
+                      <input
+                        type="text"
+                        value={novaVariacaoPreco}
+                        onChange={(e) => setNovaVariacaoPreco(e.target.value)}
                         placeholder="Preço (R$)"
                         className="w-28 px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-neon/50 focus:border-neon text-sm"
                       />
                       <button
                         type="button"
                         onClick={() => {
-                          const gramasSelect = document.getElementById('nova-variacao-gramas') as HTMLSelectElement;
-                          const precoInput = document.getElementById('nova-variacao-preco') as HTMLInputElement;
-                          const gramas = gramasSelect.value;
-                          const preco = parseFloat(precoInput.value.replace(',', '.'));
+                          const gramas = novaVariacaoGramas.trim();
+                          const preco = parseFloat(novaVariacaoPreco.replace(',', '.'));
                           
                           if (!gramas || isNaN(preco) || preco <= 0) {
-                            alert('Selecione o peso e digite um preço válido');
+                            alert('Digite o peso e um preço válido');
                             return;
                           }
                           
-                          const jaExiste = formData.variacoes.some(v => v.gramas === gramas);
+                          const jaExiste = formData.variacoes.some(v => v.gramas.toLowerCase() === gramas.toLowerCase());
                           if (jaExiste) {
                             alert('Já existe uma variação com esse peso');
                             return;
@@ -413,8 +455,8 @@ const AdminProdutos: React.FC = () => {
                             variacoes: [...prev.variacoes, { gramas, preco }]
                           }));
                           
-                          gramasSelect.value = '';
-                          precoInput.value = '';
+                          setNovaVariacaoGramas('');
+                          setNovaVariacaoPreco('');
                         }}
                         className="px-4 py-2 bg-neon text-[#132210] font-medium rounded-lg hover:brightness-110 text-sm"
                       >

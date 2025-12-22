@@ -16,6 +16,7 @@ type UIProduct = {
   image: string;
   variacoes?: Variacao[] | null;
   gramas?: string | null;
+  descricao?: string | null;
 };
 
 type Review = {
@@ -99,7 +100,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
         console.log('Carregando produto do Supabase, ID:', id);
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status, imagens, variacoes, gramas')
+          .select('id, produto_id, produto_nome, preco, status, imagens, variacoes, gramas, descricao')
           .eq('id', id)
           .single();
 
@@ -125,6 +126,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
             image,
             variacoes: data.variacoes,
             gramas: (data as any).gramas,
+            descricao: (data as any).descricao,
           };
           
           console.log('Dados do produto processados:', productData);
@@ -475,9 +477,9 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
                 {product ? product.name : loading ? 'Carregando...' : 'Produto não encontrado'}
               </h1>
               
-              {product && (
+              {product && product.descricao && (
                 <p className="text-base text-gray-700">
-                  Relaxe e desfrute de um momento de tranquilidade com nosso produto natural. Selecionado com cuidado para preservar suas propriedades e benefícios.
+                  {product.descricao}
                 </p>
               )}
 
@@ -585,8 +587,11 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
                     <span className="material-symbols-outlined transition-transform duration-300 group-open:rotate-180">expand_more</span>
                   </summary>
                   <div className="pb-4 text-gray-700 space-y-4 pl-9">
-                    <p>Nosso produto é a escolha perfeita para quem busca qualidade natural. Conhecido por suas propriedades benéficas, ajuda a promover bem-estar e saúde. É também um excelente aliado no dia a dia.</p>
-                    <p><strong>Modo de Uso:</strong> Siga as instruções na embalagem para melhores resultados.</p>
+                    {product?.descricao ? (
+                      <p>{product.descricao}</p>
+                    ) : (
+                      <p className="text-gray-400 italic">Nenhuma descrição disponível para este produto.</p>
+                    )}
                   </div>
                 </details>
 

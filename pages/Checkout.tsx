@@ -32,8 +32,16 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   const [bairro, setBairro] = useState('');
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState('');
-  const [cep, setCep] = useState('');
-  const [tipoEntrega, setTipoEntrega] = useState('sedex');
+  const [cep, setCep] = useState(() => {
+    // Recuperar CEP salvo do carrinho
+    const savedCep = localStorage.getItem('checkout_cep');
+    return savedCep || '';
+  });
+  const [tipoEntrega, setTipoEntrega] = useState(() => {
+    // Recuperar tipo de frete salvo do carrinho
+    const savedFrete = localStorage.getItem('checkout_frete_tipo');
+    return savedFrete || 'sedex';
+  });
   const [loadingCep, setLoadingCep] = useState(false);
 
   const [shippingQuotes, setShippingQuotes] = useState<{ pac?: ShippingOption; sedex?: ShippingOption } | null>(null);
@@ -91,6 +99,8 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
     const n = parseFloat(s.replace(/[^0-9.]/g, ''));
     if (!Number.isFinite(n) || n <= 0) return null;
     if (s.includes('kg')) return Math.round(n * 1000);
+    if (s.includes('ml')) return Math.round(n); // 1ml ≈ 1g
+    if (s.includes('l') && !s.includes('ml')) return Math.round(n * 1000); // 1L ≈ 1000g
     if (s.includes('g')) return Math.round(n);
     return Math.round(n);
   };
@@ -108,14 +118,23 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
     let pesoTotalGramas = 0;
     
     for (const item of items) {
-      // Extrair peso do nome do produto (ex: "Chá - 100g")
-      const match = item.name.match(/(\d+)\s*(g|kg)/i);
+      // Extrair peso do nome do produto (ex: "Chá - 100g", "Shoyu - 500ml")
+      // Suporta: g, kg, ml, l (litros)
+      const match = item.name.match(/(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b/i);
       let pesoItem = 100; // padrão
       
       if (match) {
-        const valor = parseInt(match[1]);
+        const valor = parseFloat(match[1].replace(',', '.'));
         const unidade = match[2].toLowerCase();
-        pesoItem = unidade === 'kg' ? valor * 1000 : valor;
+        if (unidade === 'kg') {
+          pesoItem = valor * 1000;
+        } else if (unidade === 'l') {
+          pesoItem = valor * 1000; // 1 litro ≈ 1000g
+        } else if (unidade === 'ml') {
+          pesoItem = valor; // 1ml ≈ 1g
+        } else {
+          pesoItem = valor; // gramas
+        }
       }
       
       console.log(`Item: ${item.name}, Peso: ${pesoItem}g, Qtd: ${item.qty}`);
@@ -630,11 +649,16 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                   <span>{formatarPeso(
                     items.reduce((total, item) => {
                       // Tenta extrair do nome primeiro (para variações)
-                      const match = item.name.match(/(\d+)\s*(g|kg)/i);
+                      // Suporta: g, kg, ml, l (litros)
+                      const match = item.name.match(/(\d+(?:[.,]\d+)?)\s*(g|kg|ml|l)\b/i);
                       if (match) {
-                        const valor = parseInt(match[1]);
+                        const valor = parseFloat(match[1].replace(',', '.'));
                         const unidade = match[2].toLowerCase();
-                        const pesoItem = unidade === 'kg' ? valor * 1000 : valor;
+                        let pesoItem = valor;
+                        if (unidade === 'kg') pesoItem = valor * 1000;
+                        else if (unidade === 'l') pesoItem = valor * 1000; // 1L ≈ 1000g
+                        else if (unidade === 'ml') pesoItem = valor; // 1ml ≈ 1g
+                        // else gramas, já está correto
                         return total + (pesoItem * item.qty);
                       }
                       // Se não encontrar, usa 100g padrão
