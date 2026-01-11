@@ -14,9 +14,12 @@ type UIProduct = {
   name: string;
   price: number;
   image: string;
+  imagens?: string[] | null;
   variacoes?: Variacao[] | null;
   gramas?: string | null;
   descricao?: string | null;
+  category?: string | null;
+  status?: string | null;
 };
 
 type Review = {
@@ -95,71 +98,133 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
       try {
         if (!id) return;
 
-        // Se NÃO temos dados iniciais, buscamos do banco
-        if (!hasInitialData) {
+        // Sempre busca os dados completos no Supabase (mesmo que a navegação tenha passado dados iniciais)
         console.log('Carregando produto do Supabase, ID:', id);
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status, imagens, variacoes, gramas, descricao')
+          .select('id, produto_id, produto_nome, preco, status, imagens, variacoes, gramas, descricao, categoria')
           .eq('id', id)
           .single();
 
         if (error) {
           console.error('Erro ao carregar produto:', error);
-          setLoading(false);
-          return;
-        }
+        } else if (data) {
+          console.log('Dados do produto recebidos:', data);
 
-        console.log('Dados do produto recebidos:', data);
-        
-        if (data) {
           const produtoId = (data.produto_id || '').toString();
-          const image = (data.imagens && data.imagens.length > 0) 
-            ? data.imagens[0] 
+          const imagens = (data as any).imagens as string[] | null | undefined;
+          const image = imagens && imagens.length > 0
+            ? imagens[0]
             : (imageByProdutoId[produtoId] ?? imageByProdutoId['1']);
-          
-          const productData = {
+
+          const productData: UIProduct = {
             id: data.id,
             produtoId,
             name: data.produto_nome,
             price: data.preco,
             image,
-            variacoes: data.variacoes,
+            imagens: imagens ?? null,
+            variacoes: (data as any).variacoes,
             gramas: (data as any).gramas,
             descricao: (data as any).descricao,
+            category: (data as any).categoria,
+            status: (data as any).status,
           };
-          
+
           console.log('Dados do produto processados:', productData);
           setProduct(productData);
         }
-      }
 
-      // Sempre carregamos os relacionados em background
-      const { data: relatedData } = await supabase
-        .from('produtos')
-        .select('id, produto_id, produto_nome, preco, status')
-        .neq('id', id)
-        .limit(4);
+        // Produtos relacionados: sempre reais do Supabase e, quando possível, da mesma categoria
+        const categoryFromState = (initialProduct as any)?.category ?? (initialProduct as any)?.categoria;
+        const category = (data as any)?.categoria ?? categoryFromState ?? null;
 
-      if (relatedData) {
-        const mapped = relatedData
-          .filter((p) => p.produto_nome && p.preco != null)
-          .map((p) => {
-            const produtoId = (p.produto_id || '').toString();
-            const image = imageByProdutoId[produtoId] ?? imageByProdutoId['1'];
-            return {
-              id: p.id,
-              produtoId,
-              name: p.produto_nome as string,
-              price: p.preco as number,
-              image,
-            };
-          });
-        setRelatedProducts(mapped);
-      }
-      
-      // Garante que loading termina
-      setLoading(false);
+        let relatedQuery = supabase
+          .from('produtos')
+          .select('id, produto_id, produto_nome, preco, status, imagens, categoria')
+          .neq('id', id)
+          .limit(4);
+
+        if (category) {
+          relatedQuery = relatedQuery.eq('categoria', category);
+        }
+
+        // Mostra ativos (ou sem status definido)
+        relatedQuery = relatedQuery.or('status.eq.ativo,status.is.null');
+
+        const { data: relatedData, error: relatedError } = await relatedQuery;
+
+        if (relatedError) {
+          console.error('Erro ao carregar relacionados:', relatedError);
+        }
+
+        if (relatedData) {
+          const mapped = relatedData
+            .filter((p) => p.produto_nome && p.preco != null)
+            .map((p) => {
+              const produtoId = (p.produto_id || '').toString();
+              const imagens = (p as any).imagens as string[] | null | undefined;
+              const image = imagens && imagens.length > 0
+                ? imagens[0]
+                : (imageByProdutoId[produtoId] ?? imageByProdutoId['1']);
+
+              return {
+                id: p.id,
+                produtoId,
+                name: p.produto_nome as string,
+                price: p.preco as number,
+                image,
+                imagens: imagens ?? null,
+                category: (p as any).categoria ?? null,
+                status: (p as any).status ?? null,
+              } as UIProduct;
+            });
+
+          // Fallback: se por categoria não tiver itens suficientes, completa com outros produtos reais do Supabase
+          if (mapped.length < 4) {
+            const { data: extraData, error: extraError } = await supabase
+              .from('produtos')
+              .select('id, produto_id, produto_nome, preco, status, imagens, categoria')
+              .neq('id', id)
+              .or('status.eq.ativo,status.is.null')
+              .limit(12);
+
+            if (extraError) {
+              console.error('Erro ao carregar relacionados (fallback):', extraError);
+            }
+
+            const existingIds = new Set(mapped.map((p) => p.id));
+            const extras = (extraData || [])
+              .filter((p) => p.produto_nome && p.preco != null)
+              .filter((p) => !existingIds.has(p.id))
+              .map((p) => {
+                const produtoId = (p.produto_id || '').toString();
+                const imagens = (p as any).imagens as string[] | null | undefined;
+                const image = imagens && imagens.length > 0
+                  ? imagens[0]
+                  : (imageByProdutoId[produtoId] ?? imageByProdutoId['1']);
+
+                return {
+                  id: p.id,
+                  produtoId,
+                  name: p.produto_nome as string,
+                  price: p.preco as number,
+                  image,
+                  imagens: imagens ?? null,
+                  category: (p as any).categoria ?? null,
+                  status: (p as any).status ?? null,
+                } as UIProduct;
+              });
+
+            const combined = [...mapped, ...extras].slice(0, 4);
+            setRelatedProducts(combined);
+          } else {
+            setRelatedProducts(mapped);
+          }
+        }
+
+        // Garante que loading termina
+        setLoading(false);
       } catch (error) {
         console.error('Erro geral ao carregar produto:', error);
         setLoading(false);
