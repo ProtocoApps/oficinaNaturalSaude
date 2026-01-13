@@ -238,8 +238,8 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
 
       console.log('Dados da preferência:', preferenceData);
 
-      // Usar Netlify Function para criar preferência
-      const response = await fetch('/.netlify/functions/mercadopago-preference', {
+      // Usar Vercel Function para criar preferência
+      const response = await fetch('/api/mercadopago-preference', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -293,7 +293,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
     
     const interval = setInterval(async () => {
       try {
-        const response = await fetch(`/.netlify/functions/mercadopago-status?id=${pedidoId}`);
+        const response = await fetch(`/api/mercadopago-status?id=${pedidoId}`);
         const data = await response.json();
         
         console.log('Status do pagamento:', data.status);
