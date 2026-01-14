@@ -4,8 +4,6 @@ import { supabase } from '../supabaseClient';
 import type { CartItem } from '../App';
 import { calcularFreteCarrinho, opcoesFrete, formatarPeso } from '../utils/freteCalculator';
 
-const WHATSAPP_ADMIN = '5547992853033';
-
 type CheckoutProps = {
   items: CartItem[];
 };
@@ -16,10 +14,15 @@ type ShippingOption = {
   prazoDias: number | null;
 };
 
+const WHATSAPP_ADMIN = '554784161829';
+
 const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [preferenceId, setPreferenceId] = useState<string | null>(null);
+  const [paymentCheckInterval, setPaymentCheckInterval] = useState<NodeJS.Timeout | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<'mercadopago' | 'agendar_pedido'>('mercadopago');
   
   // Dados do cliente
   const [customerName, setCustomerName] = useState('');
@@ -193,16 +196,126 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                         bairro.trim() !== '' && cidade.trim() !== '' && estado.trim() !== ''));
 
 
-  // Estados para Mercado Pago
-  const [preferenceId, setPreferenceId] = useState<string | null>(null);
-  const [paymentCheckInterval, setPaymentCheckInterval] = useState<NodeJS.Timeout | null>(null);
-
   // Limpar intervalo ao desmontar
   useEffect(() => {
     return () => {
       if (paymentCheckInterval) clearInterval(paymentCheckInterval);
     };
   }, [paymentCheckInterval]);
+
+  const sendWhatsAppNotification = ({
+    pedidoId,
+    metodo,
+    statusPagamento,
+    paymentId,
+  }: {
+    pedidoId: string;
+    metodo: string;
+    statusPagamento: string;
+    paymentId?: string;
+  }) => {
+    const itensDescricao = items
+      .map((item) => {
+        const price = Number(item.price) || 0;
+        const totalItem = price * item.qty;
+        return `${item.qty}x ${item.name} - R$ ${totalItem.toFixed(2)}`;
+      })
+      .join('\n');
+
+    const entregaDescricao =
+      tipoEntrega === 'retirada'
+        ? 'Retirada no local'
+        : `${endereco}, ${numero} ${complemento ? `- ${complemento}` : ''}, ${bairro}, ${cidade} - ${estado}, CEP ${cep}`;
+
+    const cabecalho = 'Pagamento aprovado no Mercado Pago';
+
+    const mensagem = [
+      cabecalho,
+      `Pedido: ${pedidoId}`,
+      `Cliente: ${customerName}`,
+      `WhatsApp: ${customerWhatsapp}`,
+      `Entrega: ${entregaDescricao}`,
+      `Forma de pagamento: ${metodo}`,
+      `Status do pagamento: ${statusPagamento}${paymentId ? ` (ID: ${paymentId})` : ''}`,
+      `Frete: ${frete === 0 ? 'Grátis' : `R$ ${frete.toFixed(2)}`}`,
+      `Total: R$ ${total.toFixed(2)}`,
+      `Itens:`,
+      itensDescricao || 'Nenhum item listado',
+    ].join('\n');
+
+    const url = `https://wa.me/${WHATSAPP_ADMIN}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, '_blank');
+  };
+
+  const sendWhatsAppAgendarPedido = (pedidoId: string) => {
+    const itensDescricao = items
+      .map((item) => {
+        const price = Number(item.price) || 0;
+        const totalItem = price * item.qty;
+        return `${item.qty}x ${item.name} - R$ ${totalItem.toFixed(2)}`;
+      })
+      .join('\n');
+
+    const entregaDescricao =
+      tipoEntrega === 'retirada'
+        ? 'Retirada no local'
+        : `${endereco}, ${numero} ${complemento ? `- ${complemento}` : ''}, ${bairro}, ${cidade} - ${estado}, CEP ${cep}`;
+
+    const mensagem = [
+      `🛒 *NOVO PEDIDO AGENDADO*`,
+      ``,
+      `📋 *Pedido:* ${pedidoId}`,
+      `👤 *Cliente:* ${customerName}`,
+      `📱 *WhatsApp:* ${customerWhatsapp}`,
+      `📍 *Entrega:* ${entregaDescricao}`,
+      `💳 *Forma de pagamento:* Agendar produto e pagar somente na loja`,
+      ``,
+      `📦 *Itens do pedido:*`,
+      itensDescricao || 'Nenhum item listado',
+      ``,
+      `💰 *Resumo:*`,
+      `Subtotal: R$ ${subtotal.toFixed(2)}`,
+      `Frete: ${frete === 0 ? 'Grátis' : `R$ ${frete.toFixed(2)}`}`,
+      `*Total: R$ ${total.toFixed(2)}*`,
+      ``,
+      `ℹ️ O cliente agendou este pedido e irá pagar na loja.`,
+    ].join('\n');
+
+    const url = `https://wa.me/${WHATSAPP_ADMIN}?text=${encodeURIComponent(mensagem)}`;
+    window.open(url, '_blank');
+  };
+
+  const [waitingPayment, setWaitingPayment] = useState(false);
+
+  // Monitorar status do pagamento
+  const startPaymentMonitoring = (pedidoId: string) => {
+    setWaitingPayment(true);
+    setLoading(false); // Parar loading inicial
+    
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/mercadopago-status?id=${pedidoId}`);
+        const data = await response.json();
+        
+        console.log('Status do pagamento:', data.status);
+        
+        if (data.status === 'approved') {
+          clearInterval(interval);
+          sendWhatsAppNotification({
+            pedidoId,
+            metodo: 'Mercado Pago (Pix/Cartão)',
+            statusPagamento: 'Aprovado',
+            paymentId: data.id,
+          });
+          navigate(`/payment/success?external_reference=${pedidoId}&payment_id=${data.id}`);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+      }
+    }, 5000); // Verificar a cada 5 segundos
+
+    setPaymentCheckInterval(interval);
+  };
 
   // Criar preferência de pagamento no Mercado Pago
   const createPreference = async (pedidoId: string) => {
@@ -263,6 +376,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
 
       const data = await response.json();
       console.log('Resposta da API Mercado Pago:', data);
+      setPreferenceId(data.id || null);
       
       // Iniciar monitoramento do pagamento
       startPaymentMonitoring(pedidoId);
@@ -282,32 +396,6 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
       console.error('Erro ao criar preferência:', error);
       throw error;
     }
-  };
-
-  const [waitingPayment, setWaitingPayment] = useState(false);
-
-  // Monitorar status do pagamento
-  const startPaymentMonitoring = (pedidoId: string) => {
-    setWaitingPayment(true);
-    setLoading(false); // Parar loading inicial
-    
-    const interval = setInterval(async () => {
-      try {
-        const response = await fetch(`/api/mercadopago-status?id=${pedidoId}`);
-        const data = await response.json();
-        
-        console.log('Status do pagamento:', data.status);
-        
-        if (data.status === 'approved') {
-          clearInterval(interval);
-          navigate(`/payment/success?external_reference=${pedidoId}&payment_id=${data.id}`);
-        }
-      } catch (error) {
-        console.error('Erro ao verificar status:', error);
-      }
-    }, 5000); // Verificar a cada 5 segundos
-
-    setPaymentCheckInterval(interval);
   };
 
   // Finalizar pedido e criar preferência do Mercado Pago
@@ -351,6 +439,14 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
         .single();
 
       if (error) throw error;
+
+      // Se for agendar pedido, vai direto para WhatsApp sem Mercado Pago
+      if (paymentMethod === 'agendar_pedido') {
+        setLoading(false);
+        sendWhatsAppAgendarPedido(data.id);
+        navigate(`/payment/pending?external_reference=${data.id}&method=agendar_pedido`);
+        return;
+      }
 
       // Criar preferência e redirecionar para o Mercado Pago
       await createPreference(data.id);
@@ -681,10 +777,55 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                 </div>
               </div>
 
+              {/* Forma de Pagamento */}
+              <div className="mt-6 mb-4">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3">Forma de Pagamento</h4>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('mercadopago')}
+                    className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'mercadopago'
+                        ? 'border-neon bg-neon/5'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-xl text-neon">credit_card</span>
+                      <span className="font-medium text-gray-900">Pix / Cartão (Mercado Pago)</span>
+                    </div>
+                    {paymentMethod === 'mercadopago' && (
+                      <span className="material-symbols-outlined text-neon">check_circle</span>
+                    )}
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('agendar_pedido')}
+                    className={`w-full flex items-center justify-between p-3 rounded-lg border-2 transition-all ${
+                      paymentMethod === 'agendar_pedido'
+                        ? 'border-neon bg-neon/5'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="material-symbols-outlined text-xl text-neon">event</span>
+                      <span className="font-medium text-gray-900">Agendar pedido</span>
+                    </div>
+                    {paymentMethod === 'agendar_pedido' && (
+                      <span className="material-symbols-outlined text-neon">check_circle</span>
+                    )}
+                  </button>
+                </div>
+                {paymentMethod === 'agendar_pedido' && (
+                  <p className="text-sm text-gray-600 mt-2">Agende seu produto e pague somente na loja</p>
+                )}
+              </div>
+
               <button
                 onClick={handleFinalizarPedido}
                 disabled={loading || waitingPayment}
-                className={`w-full mt-8 font-bold py-4 rounded-xl transition-all transform shadow-lg ${
+                className={`w-full mt-4 font-bold py-4 rounded-xl transition-all transform shadow-lg ${
                   waitingPayment 
                     ? 'bg-green-100 text-green-700 border-2 border-green-500 cursor-default'
                     : 'bg-neon hover:bg-neon/90 text-white hover:scale-105 shadow-neon/20'
@@ -693,13 +834,15 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                 {loading ? (
                   <span className="flex items-center justify-center gap-2">
                     <div className="animate-spin h-5 w-5 border-2 border-current border-t-transparent rounded-full"></div>
-                    Redirecionando...
+                    Processando...
                   </span>
                 ) : waitingPayment ? (
                   <span className="flex items-center justify-center gap-2">
                     <div className="animate-spin h-5 w-5 border-2 border-green-700 border-t-transparent rounded-full"></div>
-                    Aguardando Pagamento...
+                    Aguardando pagamento...
                   </span>
+                ) : paymentMethod === 'agendar_pedido' ? (
+                  'Agendar Pedido'
                 ) : (
                   'Realizar Pagamento'
                 )}
@@ -707,7 +850,11 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
 
               <div className="mt-6 flex items-center justify-center gap-2 text-sm text-gray-500">
                 <span className="material-symbols-outlined text-lg">lock</span>
-                <span>Pagamento 100% seguro via Mercado Pago</span>
+                <span>
+                  {paymentMethod === 'agendar_pedido' 
+                    ? 'Agende e pague na loja' 
+                    : 'Pagamento 100% seguro via Mercado Pago'}
+                </span>
               </div>
             </div>
           </aside>

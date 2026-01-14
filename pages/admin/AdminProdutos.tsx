@@ -250,7 +250,12 @@ const AdminProdutos: React.FC = () => {
       <div className="flex flex-wrap justify-between items-center gap-4 mb-6">
         <div>
           <h1 className="text-gray-900 text-3xl font-bold leading-tight">Gerenciamento de Produtos</h1>
-          <p className="text-gray-500 text-base mt-1">Adicione, edite e remova produtos do seu catálogo.</p>
+          <p className="text-gray-500 text-base mt-1">
+            Adicione, edite e remova produtos do seu catálogo.
+            <span className="ml-2 font-semibold text-neon">
+              Total: {filteredProdutos.length} {filteredProdutos.length === 1 ? 'produto' : 'produtos'}
+            </span>
+          </p>
         </div>
         <button
           onClick={() => handleOpenModal()}

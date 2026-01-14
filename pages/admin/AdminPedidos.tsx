@@ -53,6 +53,26 @@ const AdminPedidos: React.FC = () => {
     }
   };
 
+  const deletePedido = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este pedido? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('pedidos')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erro ao excluir pedido:', error);
+      alert(`Erro ao excluir pedido: ${error.message}\n\nIMPORTANTE: Você precisa executar o SQL no Supabase para permitir exclusões.\n\nVeja o arquivo: supabase_pedidos_delete_policy.sql`);
+      return;
+    }
+
+    // Recarregar a lista de pedidos
+    loadPedidos();
+  };
+
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString('pt-BR', {
       day: '2-digit',
@@ -110,14 +130,16 @@ const AdminPedidos: React.FC = () => {
       const tableRows = itens.map((item: any) => {
         if (!item) return ["Item inválido", "0", "R$ 0,00", "R$ 0,00"];
         
-        const price = Number(item.price) || 0;
-        const qty = Number(item.qty) || 0;
+        // Suporta tanto o formato antigo (name, price, qty) quanto o novo (nome, preco, quantidade)
+        const nome = item.nome || item.name || 'Produto sem nome';
+        const preco = Number(item.preco || item.price) || 0;
+        const quantidade = Number(item.quantidade || item.qty) || 0;
         
         return [
-          item.name || 'Produto sem nome',
-          qty.toString(),
-          `R$ ${price.toFixed(2)}`,
-          `R$ ${(price * qty).toFixed(2)}`
+          nome,
+          quantidade.toString(),
+          `R$ ${preco.toFixed(2).replace('.', ',')}`,
+          `R$ ${(preco * quantidade).toFixed(2).replace('.', ',')}`
         ];
       });
 
@@ -286,14 +308,24 @@ const AdminPedidos: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button
-                        onClick={() => generatePDF(pedido)}
-                        className="flex items-center gap-2 text-neon hover:text-[#132210] transition-colors text-sm font-medium ml-auto bg-neon/10 hover:bg-neon px-3 py-1.5 rounded-lg"
-                        title="Baixar Comprovante PDF"
-                      >
-                        <span className="material-symbols-outlined text-lg">description</span>
-                        Baixar PDF
-                      </button>
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => generatePDF(pedido)}
+                          className="flex items-center gap-2 text-neon hover:text-[#132210] transition-colors text-sm font-medium bg-neon/10 hover:bg-neon px-3 py-1.5 rounded-lg"
+                          title="Baixar Comprovante PDF"
+                        >
+                          <span className="material-symbols-outlined text-lg">description</span>
+                          Baixar PDF
+                        </button>
+                        <button
+                          onClick={() => deletePedido(pedido.id)}
+                          className="flex items-center gap-2 text-red-600 hover:text-red-700 transition-colors text-sm font-medium bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-lg"
+                          title="Excluir Pedido"
+                        >
+                          <span className="material-symbols-outlined text-lg">delete</span>
+                          Excluir
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}

@@ -94,29 +94,11 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
   useEffect(() => {
     const loadProducts = async () => {
       try {
-        // Tenta ler do cache primeiro para deixar a tela mais rápida
-        const cached = localStorage.getItem('productsCache');
-        if (cached) {
-          try {
-            const parsed: UIProduct[] = JSON.parse(cached);
-            // Se cache for antigo (sem gramas/variacoes), ignora
-            const cacheIsOld =
-              Array.isArray(parsed) &&
-              parsed.length > 0 &&
-              parsed.some((p) => (p as any).gramas === undefined && (p as any).variacoes === undefined);
-
-            if (!cacheIsOld && Array.isArray(parsed) && parsed.length > 0) {
-              setProducts(parsed);
-              setLoading(false);
-            }
-          } catch {
-            // se der erro no parse, ignora o cache
-          }
-        }
-
+        // Sempre buscar do Supabase para garantir dados atualizados
         const { data, error } = await supabase
           .from('produtos')
-          .select('id, produto_id, produto_nome, preco, status, imagens, categoria, variacoes, gramas');
+          .select('id, produto_id, produto_nome, preco, status, imagens, categoria, variacoes, gramas')
+          .order('produto_nome', { ascending: true });
 
         if (error) {
           console.error('Erro ao carregar produtos do Supabase:', error);
@@ -124,8 +106,20 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
           return;
         }
 
+        console.log(`Total de produtos carregados do banco: ${data?.length || 0}`);
+
         const mapped: UIProduct[] = (data || [])
-          .filter((p) => p.produto_nome && p.preco != null)
+          .filter((p) => {
+            // Filtrar apenas produtos com nome e preço válidos
+            const hasName = p.produto_nome && p.produto_nome.trim() !== '';
+            const hasPrice = p.preco != null && !isNaN(Number(p.preco)) && Number(p.preco) > 0;
+            
+            if (!hasName || !hasPrice) {
+              console.warn('Produto filtrado (sem nome ou preço):', p.id, p.produto_nome, p.preco);
+            }
+            
+            return hasName && hasPrice;
+          })
           .map((p) => {
             const produtoId = (p.produto_id || '').toString();
             const image = (p.imagens && p.imagens.length > 0) 
@@ -146,7 +140,9 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
             };
           });
 
+        console.log(`Total de produtos mapeados e exibidos: ${mapped.length}`);
         setProducts(mapped);
+        
         // Atualiza o cache para as próximas navegações
         try {
           localStorage.setItem('productsCache', JSON.stringify(mapped));
@@ -229,9 +225,57 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
   };
 
   const filteredProducts = applyFilters(products);
-  const indexOfLastProduct = currentPage * 12;
-  const indexOfFirstProduct = indexOfLastProduct - 12;
+  const productsPerPage = 12;
+  const totalPages = Math.ceil(filteredProducts.length / productsPerPage);
+  const indexOfLastProduct = currentPage * productsPerPage;
+  const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
   const currentProducts = filteredProducts.slice(indexOfFirstProduct, indexOfLastProduct);
+
+  // Resetar para página 1 quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, selectedCategories, selectedBrands, maxPrice, sortBy]);
+
+  // Função para gerar números de página a exibir
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 7; // Número máximo de páginas visíveis
+    
+    if (totalPages <= maxVisible) {
+      // Se temos poucas páginas, mostra todas
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Sempre mostra primeira página
+      pages.push(1);
+      
+      if (currentPage <= 4) {
+        // Perto do início
+        for (let i = 2; i <= 5; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 3) {
+        // Perto do fim
+        pages.push('...');
+        for (let i = totalPages - 4; i <= totalPages; i++) {
+          pages.push(i);
+        }
+      } else {
+        // No meio
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) {
+          pages.push(i);
+        }
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    
+    return pages;
+  };
 
   return (
     <div className="container mx-auto flex flex-1 flex-col px-4 py-8">
@@ -391,22 +435,93 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
           )})}
         </div>
 
-        <nav className="mt-12 flex items-center justify-center gap-2">
-          <button
-            onClick={() => setCurrentPage(1)}
-            disabled={currentPage === 1}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-neon text-neon hover:bg-neon/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </button>
-          <button
-            onClick={() => setCurrentPage(currentPage + 1)}
-            disabled={indexOfLastProduct >= filteredProducts.length}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-neon text-neon hover:bg-neon/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <span className="material-symbols-outlined">arrow_forward</span>
-          </button>
-        </nav>
+        {/* Paginação com numeração */}
+        {totalPages > 1 && (
+          <nav className="mt-12 flex flex-col items-center justify-center gap-4">
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {/* Botão Primeira Página */}
+              <button
+                onClick={() => setCurrentPage(1)}
+                disabled={currentPage === 1}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Primeira página"
+              >
+                <span className="material-symbols-outlined text-lg">first_page</span>
+              </button>
+              
+              {/* Botão Página Anterior */}
+              <button
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Página anterior"
+              >
+                <span className="material-symbols-outlined text-lg">chevron_left</span>
+              </button>
+
+              {/* Números de Página */}
+              {getPageNumbers().map((page, index) => {
+                if (page === '...') {
+                  return (
+                    <span
+                      key={`ellipsis-${index}`}
+                      className="flex h-10 w-10 items-center justify-center text-gray-500"
+                    >
+                      ...
+                    </span>
+                  );
+                }
+                
+                const pageNum = page as number;
+                const isActive = pageNum === currentPage;
+                
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-all ${
+                      isActive
+                        ? 'bg-neon text-white border-neon font-bold shadow-md scale-110'
+                        : 'border-gray-300 text-gray-700 hover:bg-neon/10 hover:border-neon'
+                    }`}
+                    aria-label={`Ir para página ${pageNum}`}
+                    aria-current={isActive ? 'page' : undefined}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              {/* Botão Próxima Página */}
+              <button
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Próxima página"
+              >
+                <span className="material-symbols-outlined text-lg">chevron_right</span>
+              </button>
+              
+              {/* Botão Última Página */}
+              <button
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={currentPage === totalPages}
+                className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Última página"
+              >
+                <span className="material-symbols-outlined text-lg">last_page</span>
+              </button>
+            </div>
+            
+            {/* Informação de produtos exibidos */}
+            <div className="text-sm text-gray-600">
+              Mostrando {indexOfFirstProduct + 1} - {Math.min(indexOfLastProduct, filteredProducts.length)} de {filteredProducts.length} produtos
+              {totalPages > 1 && (
+                <span className="ml-2">(Página {currentPage} de {totalPages})</span>
+              )}
+            </div>
+          </nav>
+        )}
       </section>
     </div>
   </div>

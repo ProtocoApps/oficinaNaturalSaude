@@ -37,3 +37,8 @@ CREATE POLICY "Permitir leitura para autenticados" ON pedidos
 -- Política para permitir atualização apenas para usuários autenticados (admin)
 CREATE POLICY "Permitir atualização para autenticados" ON pedidos
   FOR UPDATE USING (auth.role() = 'authenticated');
+
+-- Política para permitir exclusão apenas para usuários autenticados (admin)
+DROP POLICY IF EXISTS "Permitir exclusão para autenticados" ON pedidos;
+CREATE POLICY "Permitir exclusão para autenticados" ON pedidos
+  FOR DELETE USING (auth.role() = 'authenticated');
