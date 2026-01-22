@@ -90,6 +90,12 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
   const [sortBy, setSortBy] = useState<'relevance' | 'priceAsc' | 'priceDesc'>('relevance');
   const [currentPage, setCurrentPage] = useState(1);
   const [justAddedId, setJustAddedId] = useState<string | null>(null);
+  const [quantitySelector, setQuantitySelector] = useState<{
+    show: boolean;
+    productId: string;
+    product: UIProduct | null;
+  }>({ show: false, productId: '', product: null });
+  const [selectedQuantity, setSelectedQuantity] = useState(1);
 
   useEffect(() => {
     const loadProducts = async () => {
@@ -157,28 +163,50 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
     loadProducts();
   }, []);
   const handleAddToCart = (product: UIProduct) => {
-    // Se tem múltiplas opções de gramas, redireciona para a página do produto
-    const hasMultipleOptions = (product.variacoes && product.variacoes.length > 1) || 
-                              (product.gramas && product.variacoes && product.variacoes.length === 0);
+    console.log('handleAddToCart chamado com produto:', product);
+    console.log('variacoes:', product.variacoes);
+    console.log('gramas:', product.gramas);
     
-    if (hasMultipleOptions) {
-      navigate(`/product/${product.id}`);
-      return;
-    }
+    // TEMPORARIAMENTE: Mostrar sempre o modal de quantidade para debug
+    // TODO: Restaurar lógica de múltiplas opções após funcionar
+    
+    // Mostra o seletor de quantidade
+    console.log('Mostrando seletor de quantidade');
+    setQuantitySelector({
+      show: true,
+      productId: product.id,
+      product: product
+    });
+    setSelectedQuantity(1);
+  };
+
+  const confirmAddToCart = () => {
+    if (!quantitySelector.product) return;
     
     const item: CartItem = {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      qty: 1,
+      id: quantitySelector.product.id,
+      name: quantitySelector.product.name,
+      price: quantitySelector.product.price,
+      image: quantitySelector.product.image,
+      qty: selectedQuantity,
     };
     addToCart(item);
-    setJustAddedId(product.id);
+    setJustAddedId(quantitySelector.product.id);
+    setQuantitySelector({ show: false, productId: '', product: null });
+    setSelectedQuantity(1);
+    
     window.setTimeout(() => {
-      setJustAddedId((current) => (current === product.id ? null : current));
+      setJustAddedId((current) => (current === quantitySelector.product?.id ? null : current));
     }, 800);
   };
+
+  const cancelQuantitySelector = () => {
+    setQuantitySelector({ show: false, productId: '', product: null });
+    setSelectedQuantity(1);
+  };
+
+  const increaseQuantity = () => setSelectedQuantity(prev => prev + 1);
+  const decreaseQuantity = () => setSelectedQuantity(prev => Math.max(1, prev - 1));
 
   const toggleCategory = (cat: string) => {
     setSelectedCategories((prev) =>
@@ -275,6 +303,71 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
     }
     
     return pages;
+  };
+
+  // Modal de seleção de quantidade
+  const QuantityModal = () => {
+    if (!quantitySelector.show || !quantitySelector.product) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+          <div className="flex items-center gap-3 mb-4">
+            <div 
+              className="w-16 h-16 bg-center bg-no-repeat bg-cover rounded-lg"
+              style={{ backgroundImage: `url("${quantitySelector.product.image}")` }}
+            />
+            <div>
+              <h3 className="font-bold text-gray-900">{quantitySelector.product.name}</h3>
+              <p className="text-neon font-bold">R$ {quantitySelector.product.price.toFixed(2).replace('.', ',')}</p>
+            </div>
+          </div>
+          
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-3">Quantidade</label>
+            <div className="flex items-center justify-center gap-4">
+              <button
+                onClick={decreaseQuantity}
+                className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              >
+                <span className="material-symbols-outlined">remove</span>
+              </button>
+              <div className="w-16 text-center">
+                <span className="text-xl font-bold text-gray-900">{selectedQuantity}</span>
+              </div>
+              <button
+                onClick={increaseQuantity}
+                className="w-10 h-10 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50 transition-colors"
+              >
+                <span className="material-symbols-outlined">add</span>
+              </button>
+            </div>
+            <div className="text-center mt-3">
+              <p className="text-sm text-gray-600">
+                Total: <span className="font-bold text-gray-900">
+                  R$ {(quantitySelector.product.price * selectedQuantity).toFixed(2).replace('.', ',')}
+                </span>
+              </p>
+            </div>
+          </div>
+          
+          <div className="flex gap-3">
+            <button
+              onClick={cancelQuantitySelector}
+              className="flex-1 px-4 py-3 rounded-full border border-gray-300 text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={confirmAddToCart}
+              className="flex-1 px-4 py-3 rounded-full bg-neon text-[#132210] font-bold hover:bg-neon/90 transition-colors"
+            >
+              Adicionar {selectedQuantity} {selectedQuantity === 1 ? 'item' : 'itens'}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -524,6 +617,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
         )}
       </section>
     </div>
+    <QuantityModal />
   </div>
   );
 };
