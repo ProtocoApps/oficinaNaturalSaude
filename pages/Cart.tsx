@@ -123,7 +123,7 @@ const Cart: React.FC<CartProps> = ({ items, removeFromCart, updateQuantity }) =>
   };
 
   return (
-    <div className="bg-background-light min-h-screen pt-10 pb-20">
+    <div className="bg-background-light min-h-screen pt-10 pb-20 overflow-x-hidden">
       <div className="container mx-auto px-4 lg:px-8 max-w-[1200px]">
         <h1 className="text-3xl md:text-4xl font-black mb-8 text-gray-900">Carrinho de Compras</h1>
         

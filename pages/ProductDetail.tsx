@@ -415,7 +415,7 @@ const ProductDetail: React.FC<ProductDetailProps> = ({ addToCart }) => {
   }
 
   return (
-    <div className="bg-background-light min-h-screen font-display text-text-light-bg">
+    <div className="bg-background-light min-h-screen font-display text-text-light-bg overflow-x-hidden">
       <main className="flex-grow">
         <div className="container mx-auto px-4 py-8 max-w-[1200px]">
           {/* Breadcrumb */}

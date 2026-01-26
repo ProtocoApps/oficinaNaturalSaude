@@ -2,7 +2,7 @@ import React from 'react';
 
 const About: React.FC = () => {
   return (
-    <div className="animate-fade-in bg-background-light min-h-screen">
+    <div className="animate-fade-in bg-background-light min-h-screen overflow-x-hidden">
        <div className="container mx-auto px-4 py-16 md:py-24 max-w-[1000px]">
            
            <div className="text-center mb-20 space-y-6">

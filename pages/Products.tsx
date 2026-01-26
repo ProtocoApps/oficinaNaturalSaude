@@ -375,7 +375,7 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
         {/* Sidebar Filters */}
         <aside className="col-span-1 lg:col-span-1">
-          <div className="sticky top-24 rounded-2xl bg-white p-6 shadow-sm border border-gray-100">
+          <div className="sticky top-28 rounded-2xl bg-white p-6 shadow-sm border border-gray-100 max-h-[calc(100vh-120px)] overflow-y-auto">
             <h3 className="text-xl font-bold mb-6 text-gray-900">Filtros</h3>
             
             <div className="relative mb-6">

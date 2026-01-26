@@ -199,7 +199,7 @@ const Home: React.FC<HomeProps> = ({ addToCart }) => {
   const finalDisplay = needsLoop ? [...displayProducts, ...featuredProducts.slice(0, 4 - displayProducts.length)] : displayProducts;
   return (
     <>
-      <section className="relative h-[calc(100vh-80px)] min-h-[600px] overflow-hidden">
+      <section className="relative h-[calc(100vh-80px)] min-h-[600px] overflow-auto">
         <div className="absolute inset-0 z-0">
           <div
             className="h-full w-full bg-cover bg-center"
