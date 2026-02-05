@@ -27,6 +27,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   // Dados do cliente
   const [customerName, setCustomerName] = useState('');
   const [customerWhatsapp, setCustomerWhatsapp] = useState('');
+  const [customerCpf, setCustomerCpf] = useState('');
 
   // Dados de endereço
   const [endereco, setEndereco] = useState('');
@@ -191,10 +192,10 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
   // Validação
   const canContinue = customerName.trim() !== '' && 
                       customerWhatsapp.trim() !== '' &&
+                      customerCpf.trim() !== '' &&
                       (tipoEntrega === 'retirada' || 
                        (cep.trim() !== '' && endereco.trim() !== '' && numero.trim() !== '' && 
                         bairro.trim() !== '' && cidade.trim() !== '' && estado.trim() !== ''));
-
 
   // Limpar intervalo ao desmontar
   useEffect(() => {
@@ -234,6 +235,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
       `Pedido: ${pedidoId}`,
       `Cliente: ${customerName}`,
       `WhatsApp: ${customerWhatsapp}`,
+      `CPF: ${customerCpf}`,
       `Entrega: ${entregaDescricao}`,
       `Forma de pagamento: ${metodo}`,
       `Status do pagamento: ${statusPagamento}${paymentId ? ` (ID: ${paymentId})` : ''}`,
@@ -267,6 +269,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
       `📋 *Pedido:* ${pedidoId}`,
       `👤 *Cliente:* ${customerName}`,
       `📱 *WhatsApp:* ${customerWhatsapp}`,
+      `🆔 *CPF:* ${customerCpf}`,
       `📍 *Entrega:* ${entregaDescricao}`,
       `💳 *Forma de pagamento:* Agendar produto e pagar somente na loja`,
       ``,
@@ -412,6 +415,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
       const pedido = {
         cliente_nome: customerName,
         cliente_telefone: customerWhatsapp,
+        cliente_cpf: customerCpf,
         endereco: tipoEntrega === 'retirada' ? 'Retirada no local' : endereco,
         numero: tipoEntrega === 'retirada' ? '' : numero,
         complemento: tipoEntrega === 'retirada' ? '' : complemento,
@@ -499,6 +503,23 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                     placeholder="(00) 00000-0000"
                   />
                   {showErrors && !customerWhatsapp.trim() && (
+                    <p className="text-red-500 text-sm mt-1">Campo obrigatório</p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">CPF *</label>
+                  <input
+                    type="text"
+                    value={customerCpf}
+                    onChange={(e) => setCustomerCpf(e.target.value)}
+                    className={`w-full px-4 py-3 rounded-lg border ${
+                      showErrors && !customerCpf.trim() ? 'border-red-500' : 'border-gray-300'
+                    } focus:border-neon focus:ring-2 focus:ring-neon/20 transition-colors`}
+                    placeholder="000.000.000-00"
+                    maxLength={14}
+                  />
+                  {showErrors && !customerCpf.trim() && (
                     <p className="text-red-500 text-sm mt-1">Campo obrigatório</p>
                   )}
                 </div>
