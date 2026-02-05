@@ -37,8 +37,31 @@ const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onClose, onLoginSuccess
           return;
         }
 
-        setError('Conta criada! Verifique seu email para confirmar.');
-        setLoading(false);
+        // Fazer login automático após cadastro
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (signInError) {
+          setError('Conta criada! Verifique seu email para confirmar e depois faça login.');
+          setLoading(false);
+          return;
+        }
+
+        // Login automático bem-sucedido após cadastro
+        setError('Conta criada e login realizado com sucesso!');
+        setTimeout(() => {
+          setError('');
+        }, 2000);
+
+        // Se for admin, redirecionar para o dashboard
+        if (email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) {
+          navigate('/admin/dashboard');
+        }
+
+        onLoginSuccess();
+        onClose();
         return;
       } else {
         // Login
