@@ -91,6 +91,25 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
     }
   };
 
+  // Formatar CEP
+  const formatarCep = (value: string) => {
+    // Remove tudo que não é dígito
+    const numeros = value.replace(/\D/g, '');
+    // Limita a 8 dígitos
+    const limitado = numeros.slice(0, 8);
+    // Aplica máscara 00000-000
+    if (limitado.length <= 5) {
+      return limitado;
+    }
+    return `${limitado.slice(0, 5)}-${limitado.slice(5)}`;
+  };
+
+  // Handler para CEP com formatação
+  const handleCepChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const valorFormatado = formatarCep(e.target.value);
+    setCep(valorFormatado);
+  };
+
   useEffect(() => {
     if (cep.replace(/\D/g, '').length === 8) {
       buscarCep();
@@ -194,7 +213,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                       customerWhatsapp.trim() !== '' &&
                       customerCpf.trim() !== '' &&
                       (tipoEntrega === 'retirada' || 
-                       (cep.trim() !== '' && endereco.trim() !== '' && numero.trim() !== '' && 
+                       (cep.replace(/\D/g, '').length === 8 && endereco.trim() !== '' && numero.trim() !== '' && 
                         bairro.trim() !== '' && cidade.trim() !== '' && estado.trim() !== ''));
 
   // Limpar intervalo ao desmontar
@@ -622,9 +641,9 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                       <input
                         type="text"
                         value={cep}
-                        onChange={(e) => setCep(e.target.value)}
+                        onChange={handleCepChange}
                         className={`w-full px-4 py-3 rounded-lg border ${
-                          showErrors && !cep.trim() ? 'border-red-500' : 'border-gray-300'
+                          showErrors && cep.replace(/\D/g, '').length !== 8 ? 'border-red-500' : 'border-gray-300'
                         } focus:border-neon focus:ring-2 focus:ring-neon/20 transition-colors`}
                         placeholder="00000-000"
                         maxLength={9}
@@ -635,8 +654,8 @@ const Checkout: React.FC<CheckoutProps> = ({ items }) => {
                         </div>
                       )}
                     </div>
-                    {showErrors && !cep.trim() && (
-                      <p className="text-red-500 text-sm mt-1">Campo obrigatório</p>
+                    {showErrors && cep.replace(/\D/g, '').length !== 8 && (
+                      <p className="text-red-500 text-sm mt-1">CEP inválido. Digite 8 números.</p>
                     )}
                     {!!freteError && (
                       <p className="text-red-500 text-sm mt-1">{freteError}</p>
