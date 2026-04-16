@@ -301,13 +301,30 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
         pages.push(totalPages);
       }
     }
-    
     return pages;
+  };
+
+  // Calcula total de gramas/ml baseado na quantidade
+  const calcularTotalGramas = (gramas: string | null | undefined, quantidade: number): string | null => {
+    if (!gramas) return null;
+    const s = gramas.trim().toLowerCase().replace(',', '.');
+    const match = s.match(/^(\d+(?:\.\d+)?)\s*(g|kg|ml|l)$/);
+    if (!match) return null;
+    const valor = parseFloat(match[1]);
+    const unidade = match[2];
+    const total = valor * quantidade;
+    if (unidade === 'kg') return `${total % 1 === 0 ? total : total.toFixed(2)}kg`;
+    if (unidade === 'l') return `${total % 1 === 0 ? total : total.toFixed(2)}L`;
+    if (unidade === 'ml') return `${total % 1 === 0 ? total : total.toFixed(0)}ml`;
+    return `${total % 1 === 0 ? total : total.toFixed(0)}g`;
   };
 
   // Modal de seleção de quantidade
   const QuantityModal = () => {
     if (!quantitySelector.show || !quantitySelector.product) return null;
+
+    const p = quantitySelector.product;
+    const totalGramas = calcularTotalGramas(p.gramas, selectedQuantity);
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -315,11 +332,14 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
           <div className="flex items-center gap-3 mb-4">
             <div 
               className="w-16 h-16 bg-center bg-no-repeat bg-cover rounded-lg"
-              style={{ backgroundImage: `url("${quantitySelector.product.image}")` }}
+              style={{ backgroundImage: `url("${p.image}")` }}
             />
             <div>
-              <h3 className="font-bold text-gray-900">{quantitySelector.product.name}</h3>
-              <p className="text-neon font-bold">R$ {quantitySelector.product.price.toFixed(2).replace('.', ',')}</p>
+              <h3 className="font-bold text-gray-900">{p.name}</h3>
+              <p className="text-neon font-bold">R$ {p.price.toFixed(2).replace('.', ',')}</p>
+              {p.gramas && (
+                <p className="text-xs text-gray-500">{p.gramas} por unidade</p>
+              )}
             </div>
           </div>
           
@@ -342,10 +362,15 @@ const Products: React.FC<ProductsProps> = ({ addToCart }) => {
                 <span className="material-symbols-outlined">add</span>
               </button>
             </div>
-            <div className="text-center mt-3">
+            <div className="text-center mt-3 space-y-1">
+              {totalGramas && (
+                <p className="text-sm text-gray-600">
+                  Total em peso: <span className="font-bold text-neon">{totalGramas}</span>
+                </p>
+              )}
               <p className="text-sm text-gray-600">
                 Total: <span className="font-bold text-gray-900">
-                  R$ {(quantitySelector.product.price * selectedQuantity).toFixed(2).replace('.', ',')}
+                  R$ {(p.price * selectedQuantity).toFixed(2).replace('.', ',')}
                 </span>
               </p>
             </div>
